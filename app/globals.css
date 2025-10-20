@@ -1,0 +1,10 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Optional: smooth text and base background */
+html, body {
+  height: 100%;
+}
+
+
