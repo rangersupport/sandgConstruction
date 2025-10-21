@@ -1,9 +1,12 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import dynamic from "next/dynamic"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { MapPin, Users, Clock } from "lucide-react"
+
+const MapView = dynamic(() => import("./map-view"), { ssr: false })
 
 interface ActiveEmployee {
   id: string
@@ -18,10 +21,11 @@ interface ActiveEmployee {
 export function EmployeeMap() {
   const [activeEmployees, setActiveEmployees] = useState<ActiveEmployee[]>([])
   const [loading, setLoading] = useState(true)
+  const [selectedEmployee, setSelectedEmployee] = useState<string | null>(null)
 
   useEffect(() => {
     loadActiveEmployees()
-    const interval = setInterval(loadActiveEmployees, 30000) // Refresh every 30 seconds
+    const interval = setInterval(loadActiveEmployees, 30000)
     return () => clearInterval(interval)
   }, [])
 
@@ -37,32 +41,29 @@ export function EmployeeMap() {
     }
   }
 
-  // Calculate center point of all active employees
   const centerLat =
     activeEmployees.length > 0
       ? activeEmployees.reduce((sum, emp) => sum + emp.latitude, 0) / activeEmployees.length
-      : 26.0 // Default to Florida
+      : 26.7153
 
   const centerLng =
     activeEmployees.length > 0
       ? activeEmployees.reduce((sum, emp) => sum + emp.longitude, 0) / activeEmployees.length
-      : -80.2
+      : -80.0534
 
   return (
     <div className="h-full w-full flex flex-col lg:flex-row">
-      {/* Map Container */}
-      <div className="flex-1 relative bg-muted">
-        <div className="absolute inset-0 flex items-center justify-center">
-          <iframe
-            src={`https://www.openstreetmap.org/export/embed.html?bbox=${centerLng - 0.1},${centerLat - 0.1},${centerLng + 0.1},${centerLat + 0.1}&layer=mapnik&marker=${centerLat},${centerLng}`}
-            className="w-full h-full border-0"
-            title="Employee Location Map"
-          />
-        </div>
+      <div className="flex-1 relative">
+        <MapView
+          employees={activeEmployees}
+          center={[centerLat, centerLng]}
+          onMarkerClick={(id) => setSelectedEmployee(id)}
+          selectedEmployee={selectedEmployee}
+        />
 
-        {/* Overlay with employee markers */}
-        <div className="absolute top-4 left-4 right-4 pointer-events-none">
-          <Card className="pointer-events-auto">
+        {/* Overlay card */}
+        <div className="absolute top-4 left-4 z-[1000] pointer-events-none">
+          <Card className="pointer-events-auto shadow-lg">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Users className="w-5 h-5" />
@@ -88,7 +89,13 @@ export function EmployeeMap() {
           ) : (
             <div className="space-y-3">
               {activeEmployees.map((employee) => (
-                <Card key={employee.id} className="hover:shadow-md transition-shadow">
+                <Card
+                  key={employee.id}
+                  className={`hover:shadow-md transition-shadow cursor-pointer ${
+                    selectedEmployee === employee.id ? "ring-2 ring-primary" : ""
+                  }`}
+                  onClick={() => setSelectedEmployee(employee.id)}
+                >
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between mb-2">
                       <div>
