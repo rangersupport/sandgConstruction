@@ -1,8 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import Sparkline from "./Sparkline"
 import { Badge } from "@/components/ui/badge"
-import { createClient } from "@/lib/supabase/server"
-import { redirect } from "next/navigation"
 
 type ActiveWorkerRow = {
   id: string
@@ -67,85 +65,7 @@ const mockData = {
   ],
 }
 
-export default async function DashboardPage() {
-  console.log("[v0] Dashboard page rendering")
-  const supabase = await createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  console.log("[v0] Dashboard - User check:", user ? `User found: ${user.email}` : "No user found")
-
-  // If no user session, redirect to admin login
-  if (!user) {
-    console.log("[v0] Dashboard - Redirecting to /admin/login")
-    redirect("/admin/login")
-  }
-
-  console.log("[v0] Dashboard - Checking if user is admin")
-  // Verify user is an admin
-  const { data: adminUser } = await supabase
-    .from("admin_users")
-    .select("id, email, name")
-    .eq("email", user.email)
-    .single()
-
-  console.log("[v0] Dashboard - Admin user:", adminUser ? `Admin found: ${adminUser.email}` : "Not an admin")
-
-  // If not an admin, redirect to employee page
-  if (!adminUser) {
-    console.log("[v0] Dashboard - User is not admin, redirecting to /employee")
-    redirect("/employee")
-  }
-
-  console.log("[v0] Dashboard - Rendering dashboard for admin:", adminUser.email)
-
-  // const { data: activeWorkersData } = await supabase
-  //   .from("time_entries")
-  //   .select("id, clock_in, employee_id, project_id")
-  //   .eq("status", "clocked_in")
-  //   .is("clock_out", null)
-  //   .order("clock_in", { ascending: false })
-
-  // const activeWorkers = (activeWorkersData || []) as ActiveWorkerRow[]
-
-  // // Fetch all employees and projects for lookups
-  // const { data: employeesData } = await supabase.from("employees").select("id, first_name, last_name")
-
-  // const { data: projectsData } = await supabase.from("projects").select("id, name")
-
-  // const employeesMap = new Map((employeesData || []).map((e: EmployeeRow) => [e.id, e]))
-  // const projectsMap = new Map((projectsData || []).map((p: ProjectRow) => [p.id, p]))
-
-  // // Counts
-  // const [employeesCountRes, projectsCountRes] = await Promise.all([
-  //   supabase.from("employees").select("*", { count: "exact", head: true }).eq("status", "active"),
-  //   supabase.from("projects").select("*", { count: "exact", head: true }).eq("status", "active"),
-  // ])
-  // const totalEmployees = employeesCountRes.count || 0
-  // const activeProjects = projectsCountRes.count || 0
-
-  // // This week hours
-  // const startOfWeek = new Date()
-  // const day = startOfWeek.getDay()
-  // const diff = (day === 0 ? -6 : 1) - day
-  // startOfWeek.setDate(startOfWeek.getDate() + diff)
-  // startOfWeek.setHours(0, 0, 0, 0)
-  // const { data: weekEntries } = await supabase
-  //   .from("time_entries")
-  //   .select("hours_worked")
-  //   .gte("clock_in", startOfWeek.toISOString())
-  //   .not("hours_worked", "is", null)
-  // const thisWeekHours = (weekEntries || []).reduce((sum, e) => sum + (e.hours_worked || 0), 0)
-
-  // const { data: recentData } = await supabase
-  //   .from("time_entries")
-  //   .select("id, clock_in, clock_out, hours_worked, updated_at, employee_id, project_id")
-  //   .order("updated_at", { ascending: false })
-  //   .limit(5)
-  // const recentEntries = (recentData || []) as RecentEntryRow[]
-
+export default function DashboardPage() {
   return (
     <div className="p-6 space-y-6">
       <h1 className="text-3xl font-semibold tracking-tight">Dashboard</h1>
