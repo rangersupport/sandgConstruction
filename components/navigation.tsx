@@ -1,9 +1,11 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { LayoutDashboard, Clock, Users, FolderKanban, Map, DollarSign } from "lucide-react"
+import { LayoutDashboard, Clock, Users, FolderKanban, Map, DollarSign, LogOut } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { adminLogout } from "@/lib/actions/auth-actions"
 
 const navItems = [
   {
@@ -40,6 +42,11 @@ const navItems = [
 
 export function Navigation() {
   const pathname = usePathname()
+  const router = useRouter()
+
+  const handleLogout = async () => {
+    await adminLogout()
+  }
 
   return (
     <nav className="border-b bg-background">
@@ -75,6 +82,11 @@ export function Navigation() {
               })}
             </div>
           </div>
+
+          <Button variant="ghost" size="sm" onClick={handleLogout} className="gap-2">
+            <LogOut className="h-4 w-4" />
+            Logout
+          </Button>
         </div>
       </div>
     </nav>

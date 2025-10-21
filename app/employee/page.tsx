@@ -1,10 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { TimeClock } from "@/components/employee/time-clock"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { getEmployees } from "@/lib/actions/employee-actions"
 import { Loader2 } from "lucide-react"
 
 interface Employee {
@@ -13,32 +11,24 @@ interface Employee {
 }
 
 export default function EmployeePage() {
-  const [employees, setEmployees] = useState<Employee[]>([])
+  const [employeeId, setEmployeeId] = useState<string | null>(null)
+  const [employeeName, setEmployeeName] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("")
-  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null)
+  const router = useRouter()
 
   useEffect(() => {
-    loadEmployees()
-  }, [])
+    const storedEmployeeId = sessionStorage.getItem("employee_id")
+    const storedEmployeeName = sessionStorage.getItem("employee_name")
 
-  async function loadEmployees() {
-    try {
-      const data = await getEmployees()
-      setEmployees(data)
-    } catch (error) {
-      console.error("Error loading employees:", error)
-    } finally {
-      setLoading(false)
+    if (!storedEmployeeId || !storedEmployeeName) {
+      router.push("/employee/login")
+      return
     }
-  }
 
-  useEffect(() => {
-    if (selectedEmployeeId) {
-      const employee = employees.find((e) => e.id === selectedEmployeeId)
-      setSelectedEmployee(employee || null)
-    }
-  }, [selectedEmployeeId, employees])
+    setEmployeeId(storedEmployeeId)
+    setEmployeeName(storedEmployeeName)
+    setLoading(false)
+  }, [router])
 
   if (loading) {
     return (
@@ -48,34 +38,13 @@ export default function EmployeePage() {
     )
   }
 
+  if (!employeeId || !employeeName) {
+    return null
+  }
+
   return (
     <div className="min-h-screen bg-background">
-      {!selectedEmployee ? (
-        <div className="container max-w-md mx-auto pt-20">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-2xl text-center">S&G Construction</CardTitle>
-              <p className="text-center text-muted-foreground">Select your name to clock in/out</p>
-            </CardHeader>
-            <CardContent>
-              <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId}>
-                <SelectTrigger className="w-full h-12 text-lg">
-                  <SelectValue placeholder="Choose your name..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {employees.map((employee) => (
-                    <SelectItem key={employee.id} value={employee.id} className="text-lg">
-                      {employee.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </CardContent>
-          </Card>
-        </div>
-      ) : (
-        <TimeClock employeeId={selectedEmployee.id} employeeName={selectedEmployee.name} />
-      )}
+      <TimeClock employeeId={employeeId} employeeName={employeeName} />
     </div>
   )
 }
