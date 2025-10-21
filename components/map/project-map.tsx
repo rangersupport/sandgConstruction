@@ -1,10 +1,12 @@
 "use client"
 
+import type React from "react"
+
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { MapPin, Users, Clock, Building2 } from "lucide-react"
-import { google } from "google-maps"
+import { MapPin, Users, Clock, Building2, ZoomIn, ZoomOut } from "lucide-react"
+import { Button } from "@/components/ui/button"
 
 interface Worker {
   id: string
@@ -158,107 +160,129 @@ function InteractiveProjectMap({
   selectedProject: string | null
   onProjectClick: (id: string) => void
 }) {
-  const [mapLoaded, setMapLoaded] = useState(false)
+  const [zoom, setZoom] = useState(10)
+  const [pan, setPan] = useState({ x: 0, y: 0 })
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
 
-  useEffect(() => {
-    // Load Google Maps script
-    if (!window.google) {
-      const script = document.createElement("script")
-      script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8`
-      script.async = true
-      script.defer = true
-      script.onload = () => setMapLoaded(true)
-      document.head.appendChild(script)
-    } else {
-      setMapLoaded(true)
+  // Convert lat/lng to pixel coordinates
+  const latLngToPixel = (lat: number, lng: number) => {
+    const scale = Math.pow(2, zoom)
+    const worldWidth = 256 * scale
+    const worldHeight = 256 * scale
+
+    const x = ((lng + 180) / 360) * worldWidth
+    const latRad = (lat * Math.PI) / 180
+    const mercN = Math.log(Math.tan(Math.PI / 4 + latRad / 2))
+    const y = worldHeight / 2 - (worldWidth * mercN) / (2 * Math.PI)
+
+    return { x: x + pan.x, y: y + pan.y }
+  }
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true)
+    setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y })
+  }
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (isDragging) {
+      setPan({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y })
     }
-  }, [])
+  }
 
-  useEffect(() => {
-    if (!mapLoaded || projects.length === 0) return
-
-    const mapElement = document.getElementById("project-map")
-    if (!mapElement) return
-
-    const map = new google.maps.Map(mapElement, {
-      center: { lat: center[0], lng: center[1] },
-      zoom: 10,
-      mapTypeControl: true,
-      streetViewControl: false,
-      fullscreenControl: true,
-    })
-
-    const bounds = new google.maps.LatLngBounds()
-
-    // Add markers for each project
-    projects.forEach((project) => {
-      const position = { lat: project.latitude, lng: project.longitude }
-      bounds.extend(position)
-
-      // Create custom marker with worker count
-      const marker = new google.maps.Marker({
-        position,
-        map,
-        title: project.project_name,
-        label: {
-          text: project.active_workers.toString(),
-          color: "white",
-          fontSize: "14px",
-          fontWeight: "bold",
-        },
-        icon: {
-          path: google.maps.SymbolPath.CIRCLE,
-          scale: 20,
-          fillColor: selectedProject === project.project_id ? "#3b82f6" : "#22c55e",
-          fillOpacity: 1,
-          strokeColor: "white",
-          strokeWeight: 3,
-        },
-      })
-
-      // Info window with project details
-      const infoWindow = new google.maps.InfoWindow({
-        content: `
-          <div style="padding: 8px; min-width: 200px;">
-            <h3 style="font-weight: bold; margin-bottom: 8px;">${project.project_name}</h3>
-            <p style="font-size: 12px; color: #666; margin-bottom: 8px;">${project.address}</p>
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-              <span style="background: #22c55e; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px;">
-                ${project.active_workers} Active Workers
-              </span>
-            </div>
-            <div style="font-size: 12px; color: #666;">
-              ${project.workers.map((w) => `<div>• ${w.name} (${w.hours.toFixed(1)}h)</div>`).join("")}
-            </div>
-          </div>
-        `,
-      })
-
-      marker.addListener("click", () => {
-        onProjectClick(project.project_id)
-        infoWindow.open(map, marker)
-      })
-
-      // Open info window for selected project
-      if (selectedProject === project.project_id) {
-        infoWindow.open(map, marker)
-      }
-    })
-
-    // Fit map to show all markers
-    if (projects.length > 1) {
-      map.fitBounds(bounds)
-    }
-  }, [mapLoaded, projects, center, selectedProject, onProjectClick])
+  const handleMouseUp = () => {
+    setIsDragging(false)
+  }
 
   return (
-    <div className="w-full h-full min-h-[500px] relative">
-      <div id="project-map" className="w-full h-full" />
-      {!mapLoaded && (
-        <div className="absolute inset-0 flex items-center justify-center bg-muted">
-          <p className="text-muted-foreground">Loading map...</p>
+    <div className="w-full h-full min-h-[500px] relative bg-slate-100">
+      {/* Map Background with OpenStreetMap tiles */}
+      <div
+        className="absolute inset-0 cursor-move"
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        style={{
+          backgroundImage: `url(https://tile.openstreetmap.org/${zoom}/${Math.floor(((center[1] + 180) / 360) * Math.pow(2, zoom))}/${Math.floor(((1 - Math.log(Math.tan((center[0] * Math.PI) / 180) + 1 / Math.cos((center[0] * Math.PI) / 180)) / Math.PI) / 2) * Math.pow(2, zoom))}.png)`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+      >
+        {/* Project Markers */}
+        {projects.map((project) => {
+          const pos = latLngToPixel(project.latitude, project.longitude)
+          const isSelected = selectedProject === project.project_id
+
+          return (
+            <div
+              key={project.project_id}
+              className="absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-all hover:scale-110"
+              style={{
+                left: `${(pos.x / 256) * 100}%`,
+                top: `${(pos.y / 256) * 100}%`,
+              }}
+              onClick={(e) => {
+                e.stopPropagation()
+                onProjectClick(project.project_id)
+              }}
+            >
+              {/* Marker Circle with Worker Count */}
+              <div
+                className={`relative flex items-center justify-center w-12 h-12 rounded-full shadow-lg transition-all ${
+                  isSelected ? "bg-blue-500 ring-4 ring-blue-300 scale-125" : "bg-green-500 ring-2 ring-white"
+                }`}
+              >
+                <span className="text-white font-bold text-lg">{project.active_workers}</span>
+              </div>
+
+              {/* Tooltip on hover */}
+              <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 bg-white rounded-lg shadow-xl p-3 min-w-[200px] opacity-0 hover:opacity-100 transition-opacity pointer-events-none z-20">
+                <h4 className="font-bold text-sm mb-1">{project.project_name}</h4>
+                <p className="text-xs text-muted-foreground mb-2">{project.address}</p>
+                <div className="text-xs space-y-1">
+                  {project.workers.map((w) => (
+                    <div key={w.id} className="flex justify-between">
+                      <span>{w.name}</span>
+                      <span className="text-muted-foreground">{w.hours.toFixed(1)}h</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Zoom Controls */}
+      <div className="absolute bottom-4 right-4 flex flex-col gap-2 z-10">
+        <Button
+          size="icon"
+          variant="secondary"
+          onClick={() => setZoom((z) => Math.min(z + 1, 18))}
+          className="shadow-lg"
+        >
+          <ZoomIn className="w-4 h-4" />
+        </Button>
+        <Button
+          size="icon"
+          variant="secondary"
+          onClick={() => setZoom((z) => Math.max(z - 1, 3))}
+          className="shadow-lg"
+        >
+          <ZoomOut className="w-4 h-4" />
+        </Button>
+      </div>
+
+      {/* Legend */}
+      <div className="absolute bottom-4 left-4 bg-white rounded-lg shadow-lg p-3 z-10">
+        <div className="flex items-center gap-2 text-sm">
+          <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center text-white text-xs font-bold">
+            #
+          </div>
+          <span className="text-muted-foreground">Active Workers at Site</span>
         </div>
-      )}
+      </div>
     </div>
   )
 }
