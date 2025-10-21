@@ -35,17 +35,19 @@ export async function updateSession(request: NextRequest) {
 
   // Public routes that don't require authentication
   const isLoginPage = pathname === "/admin/login" || pathname === "/employee/login" || pathname === "/login"
+  const isSetupPage = pathname === "/admin/setup"
   const isRootPage = pathname === "/"
-  const isPublicRoute = isLoginPage || isRootPage
+  const isPublicRoute = isLoginPage || isRootPage || isSetupPage
 
   // Admin protected routes - must come before employee check
+  // Exclude /admin/login and /admin/setup from protected routes
   const isAdminRoute =
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/employees") ||
     pathname.startsWith("/projects") ||
     pathname.startsWith("/payroll") ||
     pathname.startsWith("/map") ||
-    pathname.startsWith("/admin")
+    (pathname.startsWith("/admin") && !isLoginPage && !isSetupPage)
 
   // Employee protected routes - only /employee and /employee/* but NOT /employee/login
   const isEmployeeRoute = pathname === "/employee" || (pathname.startsWith("/employee/") && !isLoginPage)
