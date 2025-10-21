@@ -1,90 +1,58 @@
-import { TimeClock } from '@/components/employee/time-clock';
-import { createClient } from '@/lib/supabase/server';
-import { redirect } from 'next/navigation';
+"use client"
 
-export default async function EmployeePage() {
-  const supabase = await createClient();
+import { useState, useEffect } from "react"
+import { TimeClock } from "@/components/employee/time-clock"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
-  // TEMPORARILY COMMENTED OUT FOR TESTING - BYPASS AUTH
-  // const { data: { user }, error: userError } = await supabase.auth.getUser();
+// Mock employee data - in production this would come from auth/database
+const EMPLOYEES = [
+  { id: "1", name: "John Doe" },
+  { id: "2", name: "Jane Smith" },
+  { id: "3", name: "Maria Garcia" },
+  { id: "4", name: "David Johnson" },
+  { id: "5", name: "Sarah Williams" },
+]
 
-  // if (userError || !user) {
-  //   redirect('/auth/login');
-  // }
+export default function EmployeePage() {
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("")
+  const [selectedEmployee, setSelectedEmployee] = useState<{ id: string; name: string } | null>(null)
 
-  // Get the first active employee, or any employee if none are active
-  const { data: employees, error: employeeError } = await supabase
-    .from('employees')
-    .select('*')
-    .order('status', { ascending: true }) // 'active' comes before 'inactive'
-    .limit(1);
-
-  // Debug logging
-  console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
-  console.log('Supabase Anon Key exists:', !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
-  console.log('Employees query result:', { employees, employeeError });
-
-  // Test simple connection with more details
-  const { data: testData, error: testError } = await supabase
-    .from('employees')
-    .select('count')
-    .limit(1);
-  console.log('Test connection result:', { testData, testError });
-
-  // Test with RLS bypass (if you have service role key)
-  const { data: allEmployees, error: allError } = await supabase
-    .from('employees')
-    .select('id, first_name, last_name, status')
-    .limit(5);
-  console.log('All employees query:', { allEmployees, allError });
-
-  if (employeeError) {
-    console.error('Database error:', employeeError);
-    return (
-      <div className="flex items-center justify-center min-h-screen p-4">
-        <div className="text-center space-y-4">
-          <h1 className="text-2xl font-bold">Database Error</h1>
-          <p className="text-muted-foreground">
-            Unable to connect to database. Please try again later.
-          </p>
-          <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-sm text-red-800">
-              <strong>Error:</strong> {employeeError.message}
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!employees || employees.length === 0) {
-    return (
-      <div className="flex items-center justify-center min-h-screen p-4">
-        <div className="text-center space-y-4">
-          <h1 className="text-2xl font-bold">No Employees Found</h1>
-          <p className="text-muted-foreground">
-            No employee records found in the database. Please contact your administrator.
-          </p>
-          <div className="mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <p className="text-sm text-yellow-800">
-              <strong>For Testing:</strong> You may need to add employee data to your Supabase database.
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const employee = employees[0];
-
-  const employeeName = `${employee.first_name} ${employee.last_name}`;
+  useEffect(() => {
+    if (selectedEmployeeId) {
+      const employee = EMPLOYEES.find((e) => e.id === selectedEmployeeId)
+      setSelectedEmployee(employee || null)
+    }
+  }, [selectedEmployeeId])
 
   return (
     <div className="min-h-screen bg-background">
-      <TimeClock 
-        employeeId={employee.id} 
-        employeeName={employeeName}
-      />
+      {!selectedEmployee ? (
+        <div className="container max-w-md mx-auto pt-20">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-2xl text-center">S&G Construction</CardTitle>
+              <p className="text-center text-muted-foreground">Select your name to clock in/out</p>
+            </CardHeader>
+            <CardContent>
+              <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId}>
+                <SelectTrigger className="w-full h-12 text-lg">
+                  <SelectValue placeholder="Choose your name..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {EMPLOYEES.map((employee) => (
+                    <SelectItem key={employee.id} value={employee.id} className="text-lg">
+                      {employee.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </CardContent>
+          </Card>
+        </div>
+      ) : (
+        <TimeClock employeeId={selectedEmployee.id} employeeName={selectedEmployee.name} />
+      )}
     </div>
-  );
+  )
 }
