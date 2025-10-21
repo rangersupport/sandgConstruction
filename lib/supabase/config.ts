@@ -14,9 +14,8 @@ const getEnvVar = (key: string): string => {
 export const supabaseConfig = {
   // Your actual Supabase project URL from the dashboard
   url: "https://ydjyovimfabtpxpgcxyj.supabase.co",
-  // Your actual anon key from the Supabase dashboard
   anonKey:
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlkanlvdmltZmFidHB4cGdjeHlqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ3OTQzMDQsImV4cCI6MjA1MDM3MDMwNH0.4Ky_3Aq-yvh-Aq7Aq-yvh-Aq7Aq-yvh-Aq7Aq-yvh-Aq7Aq",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlkanlvdmltZmFidHB4cGdjeHlqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA5Mjk2MjIsImV4cCI6MjA3NjUwNTYyMn0.AqYb0sBfglpQii3JnHVDKAW0uej6eG1CnlpyvtL2iw0",
 }
 
 // Debug logging to verify config is loaded
