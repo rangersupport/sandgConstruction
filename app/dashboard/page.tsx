@@ -1,6 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import Sparkline from "./Sparkline"
 import { Badge } from "@/components/ui/badge"
+import { createClient } from "@/lib/supabase/server"
+import { redirect } from "next/navigation"
 
 type ActiveWorkerRow = {
   id: string
@@ -66,7 +68,28 @@ const mockData = {
 }
 
 export default async function DashboardPage() {
-  // const supabase = await createClient()
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  // If no user session, redirect to admin login
+  if (!user) {
+    redirect("/admin/login")
+  }
+
+  // Verify user is an admin
+  const { data: adminUser } = await supabase
+    .from("admin_users")
+    .select("id, email, name")
+    .eq("email", user.email)
+    .single()
+
+  // If not an admin, redirect to employee page
+  if (!adminUser) {
+    redirect("/employee")
+  }
 
   // const { data: activeWorkersData } = await supabase
   //   .from("time_entries")

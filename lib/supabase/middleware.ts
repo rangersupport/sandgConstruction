@@ -34,42 +34,42 @@ export async function updateSession(request: NextRequest) {
   console.log("[v0] User email:", user?.email || "none")
 
   // Public routes that don't require authentication
-  const publicRoutes = ["/", "/employee/login", "/admin/login", "/login"]
-  const isPublicRoute = publicRoutes.some((route) => pathname === route || pathname.startsWith(route))
+  const isLoginPage = pathname === "/admin/login" || pathname === "/employee/login" || pathname === "/login"
+  const isRootPage = pathname === "/"
+  const isPublicRoute = isLoginPage || isRootPage
 
-  // Admin protected routes
-  const adminRoutes = ["/dashboard", "/employees", "/projects", "/payroll", "/map", "/admin"]
-  const isAdminRoute = adminRoutes.some((route) => pathname.startsWith(route))
+  // Admin protected routes - must come before employee check
+  const isAdminRoute =
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/employees") ||
+    pathname.startsWith("/projects") ||
+    pathname.startsWith("/payroll") ||
+    pathname.startsWith("/map") ||
+    pathname.startsWith("/admin")
 
-  // Employee protected routes
-  const employeeRoutes = ["/employee"]
-  const isEmployeeRoute = employeeRoutes.some((route) => pathname === route || pathname.startsWith(route + "/"))
+  // Employee protected routes - only /employee and /employee/* but NOT /employee/login
+  const isEmployeeRoute = pathname === "/employee" || (pathname.startsWith("/employee/") && !isLoginPage)
 
   console.log("[v0] Is public route:", isPublicRoute)
   console.log("[v0] Is admin route:", isAdminRoute)
   console.log("[v0] Is employee route:", isEmployeeRoute)
 
-  // If accessing admin routes without authentication, redirect to admin login
-  if (isAdminRoute && !user) {
-    console.log("[v0] Redirecting to /admin/login - admin route without auth")
+  if (!user && (isAdminRoute || isEmployeeRoute)) {
+    console.log("[v0] Redirecting to login - protected route without auth")
     const url = request.nextUrl.clone()
-    url.pathname = "/admin/login"
+    url.pathname = isAdminRoute ? "/admin/login" : "/employee/login"
+    url.searchParams.set("redirect", pathname)
     return NextResponse.redirect(url)
   }
 
-  // If authenticated user tries to access login pages, redirect to appropriate dashboard
-  if (isPublicRoute && user && pathname !== "/") {
+  if (user && isLoginPage) {
     // Check if user is admin
     const { data: adminUser } = await supabase.from("admin_users").select("id").eq("email", user.email).single()
 
     console.log("[v0] User is admin:", !!adminUser)
 
     const url = request.nextUrl.clone()
-    if (adminUser) {
-      url.pathname = "/dashboard"
-    } else {
-      url.pathname = "/employee"
-    }
+    url.pathname = adminUser ? "/dashboard" : "/employee"
     console.log("[v0] Redirecting authenticated user to:", url.pathname)
     return NextResponse.redirect(url)
   }
