@@ -1,11 +1,42 @@
-import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 
 export async function GET() {
   try {
+    const mockActiveEmployees = [
+      {
+        id: "1",
+        name: "John Doe",
+        project_name: "Residential Construction - Palm Beach",
+        latitude: 26.7153,
+        longitude: -80.0534,
+        clock_in: new Date(Date.now() - 2.5 * 3600000).toISOString(),
+        hours_elapsed: 2.5,
+      },
+      {
+        id: "2",
+        name: "Jane Smith",
+        project_name: "Commercial Renovation - Miami",
+        latitude: 25.7617,
+        longitude: -80.1918,
+        clock_in: new Date(Date.now() - 4.2 * 3600000).toISOString(),
+        hours_elapsed: 4.2,
+      },
+      {
+        id: "3",
+        name: "Maria Garcia",
+        project_name: "Office Building - Fort Lauderdale",
+        latitude: 26.1224,
+        longitude: -80.1373,
+        clock_in: new Date(Date.now() - 1.8 * 3600000).toISOString(),
+        hours_elapsed: 1.8,
+      },
+    ]
+
+    return NextResponse.json(mockActiveEmployees)
+
+    /* Production code - uncomment when deploying:
     const supabase = await createClient()
 
-    // Get all active time entries with employee and project info
     const { data: timeEntries, error } = await supabase
       .from("time_entries")
       .select("id, employee_id, project_id, clock_in, clock_in_lat, clock_in_lng")
@@ -22,7 +53,6 @@ export async function GET() {
       return NextResponse.json([])
     }
 
-    // Get employee and project details
     const employeeIds = [...new Set(timeEntries.map((e) => e.employee_id))]
     const projectIds = [...new Set(timeEntries.map((e) => e.project_id))]
 
@@ -49,6 +79,7 @@ export async function GET() {
     })
 
     return NextResponse.json(activeEmployees)
+    */
   } catch (error) {
     console.error("Error in active-employees API:", error)
     return NextResponse.json([])
