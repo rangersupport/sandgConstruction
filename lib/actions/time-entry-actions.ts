@@ -127,9 +127,10 @@ export async function clockIn(data: ClockInData): Promise<{ success: boolean; er
 
   const status = await getEmployeeStatus(data.employeeId)
   if (status?.is_clocked_in) {
+    const clockInTime = new Date(status.clock_in!).toLocaleString()
     return {
       success: false,
-      error: "You are already clocked in. Please clock out first.",
+      error: `You are already clocked in at ${status.project_name} since ${clockInTime}. Please clock out before clocking in again.`,
     }
   }
 
@@ -151,6 +152,7 @@ export async function clockIn(data: ClockInData): Promise<{ success: boolean; er
       clock_in_lat: data.latitude,
       clock_in_lng: data.longitude,
       location_verified: verification.verified,
+      distance_from_project: verification.distance || 0,
     })
     .select()
     .single()
