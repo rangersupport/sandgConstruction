@@ -1,12 +1,13 @@
-import { createClient } from "@/lib/supabase/server"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 
-export default async function ProjectsPage() {
-  const supabase = await createClient()
+const mockProjects = [
+  { id: 1, name: "Residential Construction", status: "active", location: "123 Main St, Miami, FL" },
+  { id: 2, name: "Commercial Renovation", status: "active", location: "456 Business Blvd, Tampa, FL" },
+  { id: 3, name: "Office Building", status: "planning", location: "789 Corporate Dr, Orlando, FL" },
+]
 
-  const { data: projects } = await supabase.from("projects").select("*").order("name", { ascending: true })
-
+export default function ProjectsPage() {
   return (
     <div className="p-6 space-y-6">
       <div>
@@ -15,7 +16,7 @@ export default async function ProjectsPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {(projects || []).map((project) => (
+        {mockProjects.map((project) => (
           <Card key={project.id}>
             <CardHeader>
               <CardTitle className="text-lg">{project.name}</CardTitle>
