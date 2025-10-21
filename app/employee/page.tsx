@@ -4,26 +4,49 @@ import { useState, useEffect } from "react"
 import { TimeClock } from "@/components/employee/time-clock"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { getEmployees } from "@/lib/actions/employee-actions"
+import { Loader2 } from "lucide-react"
 
-// Mock employee data - in production this would come from auth/database
-const EMPLOYEES = [
-  { id: "1", name: "John Doe" },
-  { id: "2", name: "Jane Smith" },
-  { id: "3", name: "Maria Garcia" },
-  { id: "4", name: "David Johnson" },
-  { id: "5", name: "Sarah Williams" },
-]
+interface Employee {
+  id: string
+  name: string
+}
 
 export default function EmployeePage() {
+  const [employees, setEmployees] = useState<Employee[]>([])
+  const [loading, setLoading] = useState(true)
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("")
-  const [selectedEmployee, setSelectedEmployee] = useState<{ id: string; name: string } | null>(null)
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null)
+
+  useEffect(() => {
+    loadEmployees()
+  }, [])
+
+  async function loadEmployees() {
+    try {
+      const data = await getEmployees()
+      setEmployees(data)
+    } catch (error) {
+      console.error("Error loading employees:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
     if (selectedEmployeeId) {
-      const employee = EMPLOYEES.find((e) => e.id === selectedEmployeeId)
+      const employee = employees.find((e) => e.id === selectedEmployeeId)
       setSelectedEmployee(employee || null)
     }
-  }, [selectedEmployeeId])
+  }, [selectedEmployeeId, employees])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -40,7 +63,7 @@ export default function EmployeePage() {
                   <SelectValue placeholder="Choose your name..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {EMPLOYEES.map((employee) => (
+                  {employees.map((employee) => (
                     <SelectItem key={employee.id} value={employee.id} className="text-lg">
                       {employee.name}
                     </SelectItem>
