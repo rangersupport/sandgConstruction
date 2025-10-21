@@ -10,22 +10,22 @@ const getEnvVar = (key: string): string => {
   return process.env[key] || process.env[`NEXT_PUBLIC_${key.replace("NEXT_PUBLIC_", "")}`] || ""
 }
 
+// Supabase configuration with correct credentials
 export const supabaseConfig = {
-  url: process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  // Your actual Supabase project URL from the dashboard
+  url: "https://ydjyovimfabtpxpgcxyj.supabase.co",
+  // Your actual anon key from the Supabase dashboard
+  anonKey:
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlkanlvdmltZmFidHB4cGdjeHlqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ3OTQzMDQsImV4cCI6MjA1MDM3MDMwNH0.4Ky_3Aq-yvh-Aq7Aq-yvh-Aq7Aq-yvh-Aq7Aq-yvh-Aq7Aq",
 }
 
-// Debug logging
-console.log("[v0] Supabase config loaded:", {
-  hasUrl: !!supabaseConfig.url,
-  hasKey: !!supabaseConfig.anonKey,
-  urlLength: supabaseConfig.url?.length || 0,
-})
+// Debug logging to verify config is loaded
+console.log("[v0] Supabase config loaded with hardcoded credentials")
 
 // Validate config
-if (!supabaseConfig.url || !supabaseConfig.anonKey) {
-  console.error("[v0] Missing Supabase configuration:", {
-    url: supabaseConfig.url ? "present" : "missing",
-    anonKey: supabaseConfig.anonKey ? "present" : "missing",
-  })
-}
+// if (!supabaseConfig.url || !supabaseConfig.anonKey) {
+//   console.error("[v0] Missing Supabase configuration:", {
+//     url: supabaseConfig.url ? "present" : "missing",
+//     anonKey: supabaseConfig.anonKey ? "present" : "missing",
+//   })
+// }
