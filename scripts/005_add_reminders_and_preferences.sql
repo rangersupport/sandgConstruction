@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS employee_preferences (
   employee_id UUID REFERENCES employees(id) ON DELETE CASCADE UNIQUE,
   reminder_hours INTEGER DEFAULT 8, -- Hours before sending reminder
   auto_clockout_minutes INTEGER DEFAULT 30, -- Minutes after reminder before auto clock-out
-  notification_method TEXT DEFAULT 'sms', -- 'sms', 'whatsapp', 'email', 'push'
+  notification_method TEXT DEFAULT 'sms', -- 'sms', 'email'
   phone_number TEXT,
   email TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

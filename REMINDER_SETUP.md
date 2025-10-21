@@ -10,7 +10,7 @@ The reminder system automatically sends notifications to employees who have been
 - Located in: `scripts/005_add_reminders_and_preferences.sql`
 
 ### 2. Notification Service
-- `lib/services/notification-service.ts` - Handles sending SMS/WhatsApp/Email
+- `lib/services/notification-service.ts` - Handles sending SMS and Email
 - Currently uses mock implementation
 - **TODO**: Integrate with real services (Twilio, SendGrid, etc.)
 
@@ -39,11 +39,10 @@ Add to your `.env.local` or Vercel environment variables:
 # Cron job authentication
 CRON_SECRET=your-secure-random-string
 
-# Twilio (for SMS/WhatsApp)
+# Twilio (for SMS)
 TWILIO_ACCOUNT_SID=your-account-sid
 TWILIO_AUTH_TOKEN=your-auth-token
 TWILIO_PHONE_NUMBER=+1234567890
-TWILIO_WHATSAPP_NUMBER=+1234567890
 
 # SendGrid (for Email)
 SENDGRID_API_KEY=your-sendgrid-api-key
@@ -59,7 +58,7 @@ FROM_EMAIL=noreply@sandgconstruction.com
 Employees can configure their reminder preferences:
 - Reminder hours (default: 8)
 - Auto clock-out delay (default: 30 minutes)
-- Notification method (SMS, WhatsApp, Email)
+- Notification method (SMS or Email)
 - Contact information
 
 ### Step 5: Test the System
@@ -77,13 +76,6 @@ curl -X POST https://your-domain.com/api/reminders/manual \
 3. Purchase a phone number
 4. Add credentials to environment variables
 5. Uncomment Twilio code in `notification-service.ts`
-
-### WhatsApp Setup
-1. Apply for WhatsApp Business API access through Twilio
-2. Get approved WhatsApp number
-3. Configure WhatsApp templates
-4. Add credentials to environment variables
-5. Uncomment WhatsApp code in `notification-service.ts`
 
 ### Email Setup (SendGrid)
 1. Sign up at https://sendgrid.com
@@ -141,10 +133,6 @@ SELECT * FROM get_employees_needing_reminders();
 - ~$0.0075 per SMS in US
 - 100 employees × 20 days × 10% forget rate = 200 SMS/month
 - Cost: ~$1.50/month
-
-### WhatsApp
-- ~$0.005 per message
-- Same volume: ~$1.00/month
 
 ### SendGrid Email
 - Free tier: 100 emails/day

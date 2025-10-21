@@ -1,13 +1,12 @@
-// Notification service for sending reminders via SMS/WhatsApp
+// Notification service for sending reminders via SMS and Email
 // Note: This is a placeholder implementation. In production, integrate with:
 // - Twilio for SMS
-// - WhatsApp Business API for WhatsApp
 // - SendGrid/Resend for Email
 
 export interface NotificationPayload {
   to: string // phone number or email
   message: string
-  method: "sms" | "whatsapp" | "email"
+  method: "sms" | "email"
 }
 
 export interface NotificationResult {
@@ -19,15 +18,10 @@ export interface NotificationResult {
 export async function sendNotification(payload: NotificationPayload): Promise<NotificationResult> {
   console.log("[v0] Sending notification:", payload)
 
-  // TODO: Implement actual notification sending
-  // For now, this is a mock implementation that logs the notification
-
   try {
     switch (payload.method) {
       case "sms":
         return await sendSMS(payload.to, payload.message)
-      case "whatsapp":
-        return await sendWhatsApp(payload.to, payload.message)
       case "email":
         return await sendEmail(payload.to, payload.message)
       default:
@@ -59,23 +53,6 @@ async function sendSMS(phoneNumber: string, message: string): Promise<Notificati
   return {
     success: true,
     messageId: `mock-sms-${Date.now()}`,
-  }
-}
-
-async function sendWhatsApp(phoneNumber: string, message: string): Promise<NotificationResult> {
-  // TODO: Integrate with WhatsApp Business API
-  // const twilio = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-  // const result = await twilio.messages.create({
-  //   body: message,
-  //   from: `whatsapp:${process.env.TWILIO_WHATSAPP_NUMBER}`,
-  //   to: `whatsapp:${phoneNumber}`
-  // });
-
-  console.log(`[v0] WhatsApp to ${phoneNumber}: ${message}`)
-
-  return {
-    success: true,
-    messageId: `mock-whatsapp-${Date.now()}`,
   }
 }
 
