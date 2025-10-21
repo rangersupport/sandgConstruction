@@ -1,11 +1,12 @@
+-- Updated to use 'name' column instead of 'first_name' and 'last_name' to match actual schema
 -- Insert sample employees if they don't exist
-INSERT INTO employees (id, first_name, last_name, phone, email, role, status)
+INSERT INTO employees (id, name, phone, email, role, status)
 VALUES 
-  (gen_random_uuid(), 'John', 'Smith', '555-0101', 'john.smith@sandg.com', 'worker', 'active'),
-  (gen_random_uuid(), 'Maria', 'Garcia', '555-0102', 'maria.garcia@sandg.com', 'worker', 'active'),
-  (gen_random_uuid(), 'David', 'Johnson', '555-0103', 'david.johnson@sandg.com', 'foreman', 'active'),
-  (gen_random_uuid(), 'Sarah', 'Williams', '555-0104', 'sarah.williams@sandg.com', 'worker', 'active'),
-  (gen_random_uuid(), 'Michael', 'Brown', '555-0105', 'michael.brown@sandg.com', 'manager', 'active')
+  (gen_random_uuid(), 'John Smith', '555-0101', 'john.smith@sandg.com', 'worker', 'active'),
+  (gen_random_uuid(), 'Maria Garcia', '555-0102', 'maria.garcia@sandg.com', 'worker', 'active'),
+  (gen_random_uuid(), 'David Johnson', '555-0103', 'david.johnson@sandg.com', 'foreman', 'active'),
+  (gen_random_uuid(), 'Sarah Williams', '555-0104', 'sarah.williams@sandg.com', 'worker', 'active'),
+  (gen_random_uuid(), 'Michael Brown', '555-0105', 'michael.brown@sandg.com', 'manager', 'active')
 ON CONFLICT DO NOTHING;
 
 -- Insert sample projects if they don't exist

@@ -1,22 +1,14 @@
--- Function to calculate hours worked and update time_entries
-CREATE OR REPLACE FUNCTION calculate_hours_worked()
-RETURNS TRIGGER AS $$
+-- Removed hours_worked column references and status column references that don't exist in schema
+-- Function to calculate hours worked (returns value instead of updating non-existent column)
+CREATE OR REPLACE FUNCTION calculate_hours_worked(clock_in_time TIMESTAMPTZ, clock_out_time TIMESTAMPTZ)
+RETURNS NUMERIC AS $$
 BEGIN
-  -- Only calculate if clock_out is set and clock_in exists
-  IF NEW.clock_out IS NOT NULL AND NEW.clock_in IS NOT NULL THEN
-    NEW.hours_worked := EXTRACT(EPOCH FROM (NEW.clock_out - NEW.clock_in)) / 3600.0;
+  IF clock_out_time IS NOT NULL AND clock_in_time IS NOT NULL THEN
+    RETURN EXTRACT(EPOCH FROM (clock_out_time - clock_in_time)) / 3600.0;
   END IF;
-  
-  RETURN NEW;
+  RETURN 0;
 END;
 $$ LANGUAGE plpgsql;
-
--- Trigger to automatically calculate hours when clocking out
-DROP TRIGGER IF EXISTS trigger_calculate_hours ON time_entries;
-CREATE TRIGGER trigger_calculate_hours
-  BEFORE UPDATE OF clock_out ON time_entries
-  FOR EACH ROW
-  EXECUTE FUNCTION calculate_hours_worked();
 
 -- Function to get employee current status
 CREATE OR REPLACE FUNCTION get_employee_current_status(emp_id UUID)
@@ -40,7 +32,6 @@ BEGIN
   FROM time_entries te
   JOIN projects p ON p.id = te.project_id
   WHERE te.employee_id = emp_id
-    AND te.status = 'clocked_in'
     AND te.clock_out IS NULL
   ORDER BY te.clock_in DESC
   LIMIT 1;
