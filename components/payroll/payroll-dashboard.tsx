@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DollarSign, Calendar, CheckCircle2, Clock, Download } from "lucide-react"
-import { calculateWeeklyPayroll, savePayrollRecords, getWeekStart } from "@/lib/actions/payroll-actions"
+import { calculateWeeklyPayroll, savePayrollRecords } from "@/lib/actions/payroll-actions"
+import { getWeekStart } from "@/lib/utils/date-helpers"
 
 interface PayrollData {
   employee_name: string

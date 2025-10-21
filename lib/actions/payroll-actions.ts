@@ -253,11 +253,4 @@ export async function markPayrollPaid(payrollId: string): Promise<{ success: boo
 }
 
 // Helper function to get the start of the current week (Monday)
-export async function getWeekStart(date: Date = new Date()): Promise<Date> {
-  const d = new Date(date)
-  const day = d.getDay()
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1) // Adjust when day is Sunday
-  d.setDate(diff)
-  d.setHours(0, 0, 0, 0)
-  return d
-}
+// Moved to lib/utils/date-helpers.ts as a regular utility function
