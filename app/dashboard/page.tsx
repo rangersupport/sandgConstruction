@@ -1,4 +1,3 @@
-import { createClient } from "@/lib/supabase/server"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import Sparkline from "./Sparkline"
 import { Badge } from "@/components/ui/badge"
@@ -39,53 +38,80 @@ function formatDuration(hours: number): string {
   return `${h}h ${m}m`
 }
 
+const mockData = {
+  activeWorkers: [
+    {
+      id: "1",
+      name: "John Doe",
+      project: "Residential Construction",
+      clockIn: new Date(Date.now() - 2 * 3600000).toISOString(),
+    },
+    {
+      id: "2",
+      name: "Jane Smith",
+      project: "Commercial Renovation",
+      clockIn: new Date(Date.now() - 1 * 3600000).toISOString(),
+    },
+  ],
+  totalEmployees: 5,
+  activeProjects: 3,
+  thisWeekHours: 127.5,
+  recentEntries: [
+    { id: "1", name: "John Doe", project: "Residential Construction", hours: 8.5, date: "Today" },
+    { id: "2", name: "Jane Smith", project: "Commercial Renovation", hours: 7.0, date: "Today" },
+    { id: "3", name: "Maria Garcia", project: "Office Building", hours: 8.0, date: "Yesterday" },
+    { id: "4", name: "David Johnson", project: "Residential Construction", hours: 9.0, date: "Yesterday" },
+    { id: "5", name: "Sarah Williams", project: "Commercial Renovation", hours: 7.5, date: "2 days ago" },
+  ],
+}
+
 export default async function DashboardPage() {
-  const supabase = await createClient()
+  // const supabase = await createClient()
 
-  const { data: activeWorkersData } = await supabase
-    .from("time_entries")
-    .select("id, clock_in, employee_id, project_id")
-    .eq("status", "clocked_in")
-    .is("clock_out", null)
-    .order("clock_in", { ascending: false })
+  // const { data: activeWorkersData } = await supabase
+  //   .from("time_entries")
+  //   .select("id, clock_in, employee_id, project_id")
+  //   .eq("status", "clocked_in")
+  //   .is("clock_out", null)
+  //   .order("clock_in", { ascending: false })
 
-  const activeWorkers = (activeWorkersData || []) as ActiveWorkerRow[]
+  // const activeWorkers = (activeWorkersData || []) as ActiveWorkerRow[]
 
-  // Fetch all employees and projects for lookups
-  const { data: employeesData } = await supabase.from("employees").select("id, first_name, last_name")
+  // // Fetch all employees and projects for lookups
+  // const { data: employeesData } = await supabase.from("employees").select("id, first_name, last_name")
 
-  const { data: projectsData } = await supabase.from("projects").select("id, name")
+  // const { data: projectsData } = await supabase.from("projects").select("id, name")
 
-  const employeesMap = new Map((employeesData || []).map((e: EmployeeRow) => [e.id, e]))
-  const projectsMap = new Map((projectsData || []).map((p: ProjectRow) => [p.id, p]))
+  // const employeesMap = new Map((employeesData || []).map((e: EmployeeRow) => [e.id, e]))
+  // const projectsMap = new Map((projectsData || []).map((p: ProjectRow) => [p.id, p]))
 
-  // Counts
-  const [employeesCountRes, projectsCountRes] = await Promise.all([
-    supabase.from("employees").select("*", { count: "exact", head: true }).eq("status", "active"),
-    supabase.from("projects").select("*", { count: "exact", head: true }).eq("status", "active"),
-  ])
-  const totalEmployees = employeesCountRes.count || 0
-  const activeProjects = projectsCountRes.count || 0
+  // // Counts
+  // const [employeesCountRes, projectsCountRes] = await Promise.all([
+  //   supabase.from("employees").select("*", { count: "exact", head: true }).eq("status", "active"),
+  //   supabase.from("projects").select("*", { count: "exact", head: true }).eq("status", "active"),
+  // ])
+  // const totalEmployees = employeesCountRes.count || 0
+  // const activeProjects = projectsCountRes.count || 0
 
-  // This week hours
-  const startOfWeek = new Date()
-  const day = startOfWeek.getDay()
-  const diff = (day === 0 ? -6 : 1) - day
-  startOfWeek.setDate(startOfWeek.getDate() + diff)
-  startOfWeek.setHours(0, 0, 0, 0)
-  const { data: weekEntries } = await supabase
-    .from("time_entries")
-    .select("hours_worked")
-    .gte("clock_in", startOfWeek.toISOString())
-    .not("hours_worked", "is", null)
-  const thisWeekHours = (weekEntries || []).reduce((sum, e) => sum + (e.hours_worked || 0), 0)
+  // // This week hours
+  // const startOfWeek = new Date()
+  // const day = startOfWeek.getDay()
+  // const diff = (day === 0 ? -6 : 1) - day
+  // startOfWeek.setDate(startOfWeek.getDate() + diff)
+  // startOfWeek.setHours(0, 0, 0, 0)
+  // const { data: weekEntries } = await supabase
+  //   .from("time_entries")
+  //   .select("hours_worked")
+  //   .gte("clock_in", startOfWeek.toISOString())
+  //   .not("hours_worked", "is", null)
+  // const thisWeekHours = (weekEntries || []).reduce((sum, e) => sum + (e.hours_worked || 0), 0)
 
-  const { data: recentData } = await supabase
-    .from("time_entries")
-    .select("id, clock_in, clock_out, hours_worked, updated_at, employee_id, project_id")
-    .order("updated_at", { ascending: false })
-    .limit(5)
-  const recentEntries = (recentData || []) as RecentEntryRow[]
+  // const { data: recentData } = await supabase
+  //   .from("time_entries")
+  //   .select("id, clock_in, clock_out, hours_worked, updated_at, employee_id, project_id")
+  //   .order("updated_at", { ascending: false })
+  //   .limit(5)
+  // const recentEntries = (recentData || []) as RecentEntryRow[]
 
   return (
     <div className="p-6 space-y-6">
@@ -98,12 +124,12 @@ export default async function DashboardPage() {
             <CardTitle className="text-sm font-medium">Active Workers</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{activeWorkers.length}</div>
+            <div className="text-3xl font-bold">{mockData.activeWorkers.length}</div>
             <p className="text-xs text-muted-foreground mt-1">Currently clocked in</p>
             <Sparkline
               data={Array.from({ length: 14 }, (_, i) => ({
                 x: i,
-                y: Math.max(1, activeWorkers.length + Math.random() * 2 - 1),
+                y: Math.max(1, mockData.activeWorkers.length + Math.random() * 2 - 1),
               }))}
             />
           </CardContent>
@@ -114,7 +140,7 @@ export default async function DashboardPage() {
             <CardTitle className="text-sm font-medium">Total Employees</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{totalEmployees}</div>
+            <div className="text-3xl font-bold">{mockData.totalEmployees}</div>
             <p className="text-xs text-muted-foreground mt-1">Active employees</p>
           </CardContent>
         </Card>
@@ -124,7 +150,7 @@ export default async function DashboardPage() {
             <CardTitle className="text-sm font-medium">Active Projects</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{activeProjects}</div>
+            <div className="text-3xl font-bold">{mockData.activeProjects}</div>
             <p className="text-xs text-muted-foreground mt-1">In progress</p>
           </CardContent>
         </Card>
@@ -134,7 +160,7 @@ export default async function DashboardPage() {
             <CardTitle className="text-sm font-medium">This Week</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{formatDuration(thisWeekHours)}</div>
+            <div className="text-3xl font-bold">{formatDuration(mockData.thisWeekHours)}</div>
             <p className="text-xs text-muted-foreground mt-1">Total hours worked</p>
           </CardContent>
         </Card>
@@ -146,28 +172,20 @@ export default async function DashboardPage() {
             <CardTitle className="text-base">Active Workers</CardTitle>
           </CardHeader>
           <CardContent>
-            {activeWorkers.length === 0 ? (
-              <div className="text-sm text-muted-foreground">No workers currently clocked in</div>
-            ) : (
-              <ul className="space-y-3">
-                {activeWorkers.map((row) => {
-                  const employee = employeesMap.get(row.employee_id)
-                  const project = projectsMap.get(row.project_id)
-                  const employeeName = employee ? `${employee.first_name} ${employee.last_name}` : "Unknown Employee"
-                  const projectName = project ? project.name : "Unknown Project"
-                  const clockIn = new Date(row.clock_in).toLocaleString()
-                  return (
-                    <li key={row.id} className="flex items-center justify-between border rounded-md p-3">
-                      <div>
-                        <div className="font-medium">{employeeName}</div>
-                        <div className="text-xs text-muted-foreground">Clocked in: {clockIn}</div>
-                      </div>
-                      <Badge variant="secondary">{projectName}</Badge>
-                    </li>
-                  )
-                })}
-              </ul>
-            )}
+            <ul className="space-y-3">
+              {mockData.activeWorkers.map((worker) => {
+                const clockIn = new Date(worker.clockIn).toLocaleString()
+                return (
+                  <li key={worker.id} className="flex items-center justify-between border rounded-md p-3">
+                    <div>
+                      <div className="font-medium">{worker.name}</div>
+                      <div className="text-xs text-muted-foreground">Clocked in: {clockIn}</div>
+                    </div>
+                    <Badge variant="secondary">{worker.project}</Badge>
+                  </li>
+                )
+              })}
+            </ul>
           </CardContent>
         </Card>
 
@@ -176,31 +194,18 @@ export default async function DashboardPage() {
             <CardTitle className="text-base">Recent Activity</CardTitle>
           </CardHeader>
           <CardContent>
-            {recentEntries.length === 0 ? (
-              <div className="text-sm text-muted-foreground">No recent activity</div>
-            ) : (
-              <ul className="space-y-3">
-                {recentEntries.map((row) => {
-                  const employee = employeesMap.get(row.employee_id)
-                  const project = projectsMap.get(row.project_id)
-                  const employeeName = employee ? `${employee.first_name} ${employee.last_name}` : "Unknown Employee"
-                  const projectName = project ? project.name : "Unknown Project"
-                  const duration =
-                    row.hours_worked != null
-                      ? formatDuration(row.hours_worked)
-                      : formatDuration(Math.max(0, (Date.now() - new Date(row.clock_in).getTime()) / 3600000))
-                  return (
-                    <li key={row.id} className="border rounded-md p-3">
-                      <div className="flex items-center justify-between">
-                        <div className="font-medium text-sm">{employeeName}</div>
-                        <Badge variant="outline">{duration}</Badge>
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-1">{projectName}</div>
-                    </li>
-                  )
-                })}
-              </ul>
-            )}
+            <ul className="space-y-3">
+              {mockData.recentEntries.map((entry) => (
+                <li key={entry.id} className="border rounded-md p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="font-medium text-sm">{entry.name}</div>
+                    <Badge variant="outline">{formatDuration(entry.hours)}</Badge>
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">{entry.project}</div>
+                  <div className="text-xs text-muted-foreground">{entry.date}</div>
+                </li>
+              ))}
+            </ul>
           </CardContent>
         </Card>
       </div>
