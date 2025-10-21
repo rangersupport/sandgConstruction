@@ -68,17 +68,22 @@ const mockData = {
 }
 
 export default async function DashboardPage() {
+  console.log("[v0] Dashboard page rendering")
   const supabase = await createClient()
 
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
+  console.log("[v0] Dashboard - User check:", user ? `User found: ${user.email}` : "No user found")
+
   // If no user session, redirect to admin login
   if (!user) {
+    console.log("[v0] Dashboard - Redirecting to /admin/login")
     redirect("/admin/login")
   }
 
+  console.log("[v0] Dashboard - Checking if user is admin")
   // Verify user is an admin
   const { data: adminUser } = await supabase
     .from("admin_users")
@@ -86,10 +91,15 @@ export default async function DashboardPage() {
     .eq("email", user.email)
     .single()
 
+  console.log("[v0] Dashboard - Admin user:", adminUser ? `Admin found: ${adminUser.email}` : "Not an admin")
+
   // If not an admin, redirect to employee page
   if (!adminUser) {
+    console.log("[v0] Dashboard - User is not admin, redirecting to /employee")
     redirect("/employee")
   }
+
+  console.log("[v0] Dashboard - Rendering dashboard for admin:", adminUser.email)
 
   // const { data: activeWorkersData } = await supabase
   //   .from("time_entries")
