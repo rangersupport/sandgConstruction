@@ -1,8 +1,6 @@
 "use client"
 
-import { useEffect, useRef } from "react"
-import L from "leaflet"
-import "leaflet/dist/leaflet.css"
+import { useEffect, useState } from "react"
 
 interface Employee {
   id: string
@@ -22,110 +20,92 @@ interface MapViewProps {
 }
 
 export default function MapView({ employees, center, onMarkerClick, selectedEmployee }: MapViewProps) {
-  const mapRef = useRef<L.Map | null>(null)
-  const markersRef = useRef<Map<string, L.Marker>>(new Map())
+  const [mapUrl, setMapUrl] = useState("")
 
   useEffect(() => {
-    if (!mapRef.current) {
-      // Initialize map
-      const map = L.map("map").setView(center, 10)
-
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-      }).addTo(map)
-
-      mapRef.current = map
+    if (employees.length === 0) {
+      // Default to Florida if no employees
+      setMapUrl(
+        `https://www.google.com/maps/embed/v1/view?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&center=${center[0]},${center[1]}&zoom=10`,
+      )
+      return
     }
 
-    return () => {
-      if (mapRef.current) {
-        mapRef.current.remove()
-        mapRef.current = null
-      }
-    }
-  }, [])
+    // Create markers parameter for Google Maps
+    const markers = employees
+      .map((emp) => `markers=color:green%7Clabel:${emp.name.charAt(0)}%7C${emp.latitude},${emp.longitude}`)
+      .join("&")
 
-  useEffect(() => {
-    if (!mapRef.current) return
+    // Calculate center from all employee locations
+    const centerLat = employees.reduce((sum, emp) => sum + emp.latitude, 0) / employees.length
+    const centerLng = employees.reduce((sum, emp) => sum + emp.longitude, 0) / employees.length
 
-    // Clear existing markers
-    markersRef.current.forEach((marker) => marker.remove())
-    markersRef.current.clear()
+    // Use Google Maps Static API for displaying markers
+    const url = `https://maps.googleapis.com/maps/api/staticmap?center=${centerLat},${centerLng}&zoom=10&size=800x600&${markers}&key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8`
 
-    // Create custom green icon for active employees
-    const greenIcon = L.divIcon({
-      className: "custom-marker",
-      html: `
-        <div style="
-          background-color: #22c55e;
-          width: 32px;
-          height: 32px;
-          border-radius: 50% 50% 50% 0;
-          transform: rotate(-45deg);
-          border: 3px solid white;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        ">
-          <div style="
-            transform: rotate(45deg);
-            color: white;
-            font-size: 16px;
-            font-weight: bold;
-          ">👷</div>
-        </div>
-      `,
-      iconSize: [32, 32],
-      iconAnchor: [16, 32],
-      popupAnchor: [0, -32],
-    })
+    setMapUrl(url)
+  }, [employees, center])
 
-    // Add markers for each employee
-    employees.forEach((employee) => {
-      const marker = L.marker([employee.latitude, employee.longitude], {
-        icon: greenIcon,
-      }).addTo(mapRef.current!)
+  return (
+    <div className="w-full h-full relative bg-gray-100">
+      {employees.length > 0 ? (
+        <div className="w-full h-full flex flex-col">
+          <div className="flex-1 relative">
+            <img
+              src={mapUrl || "/placeholder.svg"}
+              alt="Employee locations map"
+              className="w-full h-full object-cover"
+            />
 
-      // Create popup content
-      const popupContent = `
-        <div style="min-width: 200px;">
-          <h3 style="font-weight: bold; margin-bottom: 8px; font-size: 16px;">${employee.name}</h3>
-          <p style="color: #666; margin-bottom: 8px; font-size: 14px;">${employee.project_name}</p>
-          <div style="display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #666;">
-            <div>⏱️ ${employee.hours_elapsed.toFixed(1)} hours</div>
-            <div>📍 ${employee.latitude.toFixed(4)}, ${employee.longitude.toFixed(4)}</div>
-            <div>🕐 Clocked in: ${new Date(employee.clock_in).toLocaleTimeString()}</div>
+            {/* Clickable overlays for each employee */}
+            {employees.map((employee, index) => {
+              // Calculate approximate pixel position (this is simplified)
+              const position = {
+                left: `${20 + index * 15}%`,
+                top: `${30 + (index % 3) * 20}%`,
+              }
+
+              return (
+                <button
+                  key={employee.id}
+                  onClick={() => onMarkerClick(employee.id)}
+                  className={`absolute w-12 h-12 rounded-full bg-green-500 border-4 border-white shadow-lg hover:scale-110 transition-transform flex items-center justify-center text-white font-bold ${
+                    selectedEmployee === employee.id ? "ring-4 ring-blue-500 scale-125" : ""
+                  }`}
+                  style={position}
+                  title={`${employee.name} - ${employee.project_name}`}
+                >
+                  👷
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Legend */}
+          <div className="p-4 bg-white border-t">
+            <div className="flex flex-wrap gap-4 text-sm">
+              {employees.map((employee) => (
+                <div
+                  key={employee.id}
+                  className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded"
+                  onClick={() => onMarkerClick(employee.id)}
+                >
+                  <div className="w-4 h-4 rounded-full bg-green-500 border-2 border-white shadow" />
+                  <span className="font-medium">{employee.name}</span>
+                  <span className="text-gray-500">- {employee.project_name}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
-      `
-
-      marker.bindPopup(popupContent)
-
-      marker.on("click", () => {
-        onMarkerClick(employee.id)
-      })
-
-      markersRef.current.set(employee.id, marker)
-    })
-
-    // Adjust map bounds to show all markers
-    if (employees.length > 0) {
-      const bounds = L.latLngBounds(employees.map((e) => [e.latitude, e.longitude]))
-      mapRef.current.fitBounds(bounds, { padding: [50, 50] })
-    }
-  }, [employees, onMarkerClick])
-
-  // Highlight selected employee marker
-  useEffect(() => {
-    if (!selectedEmployee) return
-
-    const marker = markersRef.current.get(selectedEmployee)
-    if (marker) {
-      marker.openPopup()
-      mapRef.current?.panTo(marker.getLatLng())
-    }
-  }, [selectedEmployee])
-
-  return <div id="map" className="w-full h-full" />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center text-gray-500">
+          <div className="text-center">
+            <p className="text-lg font-semibold mb-2">No Active Employees</p>
+            <p className="text-sm">Employee locations will appear here when they clock in</p>
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
