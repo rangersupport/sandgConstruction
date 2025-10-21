@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2 } from "lucide-react"
+import Link from "next/link"
 
 export default function EmployeeLoginPage() {
   const [employeeNumber, setEmployeeNumber] = useState("")
@@ -110,6 +111,13 @@ export default function EmployeeLoginPage() {
                 )}
               </Button>
               <p className="text-center text-sm text-muted-foreground">Forgot your PIN? Contact your supervisor</p>
+              <div className="pt-4 border-t">
+                <Link href="/admin/login">
+                  <Button variant="outline" className="w-full bg-transparent" type="button">
+                    Admin Login
+                  </Button>
+                </Link>
+              </div>
             </form>
           </CardContent>
         </Card>

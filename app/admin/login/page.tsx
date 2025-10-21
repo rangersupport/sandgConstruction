@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2 } from "lucide-react"
+import Link from "next/link"
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState("")
@@ -91,6 +92,18 @@ export default function AdminLoginPage() {
                   "Login"
                 )}
               </Button>
+              <div className="space-y-2 pt-4 border-t">
+                <Link href="/employee/login">
+                  <Button variant="outline" className="w-full bg-transparent" type="button">
+                    Employee Login
+                  </Button>
+                </Link>
+                <Link href="/admin/setup">
+                  <Button variant="ghost" className="w-full text-sm" type="button">
+                    First time? Create admin account
+                  </Button>
+                </Link>
+              </div>
             </form>
           </CardContent>
         </Card>
