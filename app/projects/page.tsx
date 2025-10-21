@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Users, MapPin, ExternalLink } from "lucide-react"
 import Link from "next/link"
+import { NewProjectDialog } from "@/components/projects/new-project-dialog"
+import { getAllProjects } from "@/lib/actions/project-actions"
 
 interface ProjectWithWorkers {
   id: string
@@ -29,51 +31,25 @@ export default function ProjectsPage() {
 
   async function loadProjects() {
     try {
+      const dbProjects = await getAllProjects()
+
       const response = await fetch("/api/project-locations")
       const activeProjects = await response.json()
 
       // Create a map of project IDs to active worker counts
       const workerCountMap = new Map(activeProjects.map((p: any) => [p.project_id, p.active_workers]))
 
-      // Mock projects with worker counts
-      const allProjects: ProjectWithWorkers[] = [
-        {
-          id: "1",
-          name: "Residential Construction - Palm Beach",
-          status: "active",
-          location: "123 Ocean Blvd, Palm Beach, FL",
-          latitude: 26.7153,
-          longitude: -80.0534,
-          active_workers: workerCountMap.get("1") || 0,
-        },
-        {
-          id: "2",
-          name: "Commercial Renovation - Miami",
-          status: "active",
-          location: "456 Biscayne Blvd, Miami, FL",
-          latitude: 25.7617,
-          longitude: -80.1918,
-          active_workers: workerCountMap.get("2") || 0,
-        },
-        {
-          id: "3",
-          name: "Office Building - Fort Lauderdale",
-          status: "active",
-          location: "789 Las Olas Blvd, Fort Lauderdale, FL",
-          latitude: 26.1224,
-          longitude: -80.1373,
-          active_workers: workerCountMap.get("3") || 0,
-        },
-        {
-          id: "4",
-          name: "Retail Space - Boca Raton",
-          status: "planning",
-          location: "321 Town Center, Boca Raton, FL",
-          active_workers: 0,
-        },
-      ]
+      const projectsWithWorkers: ProjectWithWorkers[] = dbProjects.map((p) => ({
+        id: p.id,
+        name: p.name,
+        status: p.status || "active",
+        location: p.location,
+        latitude: p.latitude,
+        longitude: p.longitude,
+        active_workers: workerCountMap.get(p.id) || 0,
+      }))
 
-      setProjects(allProjects)
+      setProjects(projectsWithWorkers)
     } catch (error) {
       console.error("Error loading projects:", error)
     } finally {
@@ -91,13 +67,16 @@ export default function ProjectsPage() {
           <h1 className="text-3xl font-semibold tracking-tight">Projects</h1>
           <p className="text-sm text-muted-foreground">Active and upcoming construction projects</p>
         </div>
-        <Link href="/map">
-          <Badge variant="outline" className="cursor-pointer hover:bg-accent flex items-center gap-2 px-4 py-2">
-            <MapPin className="w-4 h-4" />
-            View on Map
-            <ExternalLink className="w-3 h-3" />
-          </Badge>
-        </Link>
+        <div className="flex gap-2">
+          <NewProjectDialog />
+          <Link href="/map">
+            <Badge variant="outline" className="cursor-pointer hover:bg-accent flex items-center gap-2 px-4 py-2">
+              <MapPin className="w-4 h-4" />
+              View on Map
+              <ExternalLink className="w-3 h-3" />
+            </Badge>
+          </Link>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
