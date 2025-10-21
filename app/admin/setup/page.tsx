@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { createClient } from "@/lib/supabase/client"
+import { createFirstAdmin } from "@/lib/actions/admin-setup-actions"
 
 export default function AdminSetupPage() {
   const router = useRouter()
@@ -39,64 +39,21 @@ export default function AdminSetupPage() {
     }
 
     try {
-      const supabase = createClient()
+      const result = await createFirstAdmin(email, password)
 
-      console.log("[v0] Admin setup: Attempting to sign up user:", email)
-
-      // Sign up the admin user in Supabase Auth
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: window.location.origin + "/dashboard",
-          data: {
-            role: "admin",
-          },
-        },
-      })
-
-      console.log("[v0] Admin setup: SignUp response:", { data, error: signUpError })
-
-      if (signUpError) {
-        console.error("[v0] Admin setup: SignUp error:", signUpError)
-        throw signUpError
+      if (!result.success) {
+        setError(result.error || "Failed to create admin account")
+        setLoading(false)
+        return
       }
 
-      if (data.user) {
-        console.log("[v0] Admin setup: User created in auth, adding to admin_users table")
+      console.log("[v0] Admin setup: Admin created successfully")
+      setSuccess(true)
 
-        // Add admin to admin_users table
-        const { error: insertError } = await supabase.from("admin_users").insert({
-          email: email,
-          name: "Administrator",
-          role: "super_admin",
-          is_active: true,
-        })
-
-        if (insertError) {
-          console.error("[v0] Admin setup: Error adding to admin_users:", insertError)
-          setError(`Account created but failed to set admin role: ${insertError.message}. Please contact support.`)
-          setLoading(false)
-          return
-        }
-
-        console.log("[v0] Admin setup: Successfully added to admin_users table")
-
-        setSuccess(true)
-
-        // Check if email confirmation is required
-        if (data.session) {
-          console.log("[v0] Admin setup: Session created, no email confirmation needed")
-          setTimeout(() => {
-            router.push("/dashboard")
-          }, 2000)
-        } else {
-          console.log("[v0] Admin setup: No session, email confirmation may be required")
-          setTimeout(() => {
-            router.push("/admin/login")
-          }, 3000)
-        }
-      }
+      // Redirect to login page
+      setTimeout(() => {
+        router.push("/admin/login")
+      }, 2000)
     } catch (err: any) {
       console.error("[v0] Admin setup: Error:", err)
       setError(err.message || "Failed to create admin account")
