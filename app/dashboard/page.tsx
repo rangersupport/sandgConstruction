@@ -1,75 +1,91 @@
-import { createClient } from '@/lib/supabase/server';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import Sparkline from './Sparkline';
-import { Badge } from '@/components/ui/badge';
+import { createClient } from "@/lib/supabase/server"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import Sparkline from "./Sparkline"
+import { Badge } from "@/components/ui/badge"
 
 type ActiveWorkerRow = {
-  id: string;
-  clock_in: string;
-  employee: { id: string; first_name: string; last_name: string } | null;
-  project: { id: string; name: string } | null;
-};
+  id: string
+  clock_in: string
+  employee_id: string
+  project_id: string
+}
+
+type EmployeeRow = {
+  id: string
+  first_name: string
+  last_name: string
+}
+
+type ProjectRow = {
+  id: string
+  name: string
+}
 
 type RecentEntryRow = {
-  id: string;
-  clock_in: string;
-  clock_out: string | null;
-  hours_worked: number | null;
-  updated_at: string;
-  employee: { id: string; first_name: string; last_name: string } | null;
-  project: { id: string; name: string } | null;
-};
+  id: string
+  clock_in: string
+  clock_out: string | null
+  hours_worked: number | null
+  updated_at: string
+  employee_id: string
+  project_id: string
+}
 
 function formatDuration(hours: number): string {
-  const h = Math.floor(hours);
-  const m = Math.round((hours - h) * 60);
-  if (h === 0) return `${m}m`;
-  if (m === 0) return `${h}h`;
-  return `${h}h ${m}m`;
+  const h = Math.floor(hours)
+  const m = Math.round((hours - h) * 60)
+  if (h === 0) return `${m}m`
+  if (m === 0) return `${h}h`
+  return `${h}h ${m}m`
 }
 
 export default async function DashboardPage() {
-  const supabase = await createClient();
+  const supabase = await createClient()
 
-  // Active workers
   const { data: activeWorkersData } = await supabase
-    .from('time_entries')
-    .select(
-      `id, clock_in, employee:employee_id ( id, first_name, last_name ), project:project_id ( id, name )`
-    )
-    .eq('status', 'clocked_in')
-    .order('clock_in', { ascending: false });
-  const activeWorkers = (activeWorkersData || []) as unknown as ActiveWorkerRow[];
+    .from("time_entries")
+    .select("id, clock_in, employee_id, project_id")
+    .eq("status", "clocked_in")
+    .is("clock_out", null)
+    .order("clock_in", { ascending: false })
+
+  const activeWorkers = (activeWorkersData || []) as ActiveWorkerRow[]
+
+  // Fetch all employees and projects for lookups
+  const { data: employeesData } = await supabase.from("employees").select("id, first_name, last_name")
+
+  const { data: projectsData } = await supabase.from("projects").select("id, name")
+
+  const employeesMap = new Map((employeesData || []).map((e: EmployeeRow) => [e.id, e]))
+  const projectsMap = new Map((projectsData || []).map((p: ProjectRow) => [p.id, p]))
 
   // Counts
   const [employeesCountRes, projectsCountRes] = await Promise.all([
-    supabase.from('employees').select('*', { count: 'exact', head: true }).eq('status', 'active'),
-    supabase.from('projects').select('*', { count: 'exact', head: true }).eq('status', 'active')
-  ]);
-  const totalEmployees = employeesCountRes.count || 0;
-  const activeProjects = projectsCountRes.count || 0;
+    supabase.from("employees").select("*", { count: "exact", head: true }).eq("status", "active"),
+    supabase.from("projects").select("*", { count: "exact", head: true }).eq("status", "active"),
+  ])
+  const totalEmployees = employeesCountRes.count || 0
+  const activeProjects = projectsCountRes.count || 0
 
   // This week hours
-  const startOfWeek = new Date();
-  const day = startOfWeek.getDay();
-  const diff = (day === 0 ? -6 : 1) - day; // Monday as start
-  startOfWeek.setDate(startOfWeek.getDate() + diff);
-  startOfWeek.setHours(0, 0, 0, 0);
+  const startOfWeek = new Date()
+  const day = startOfWeek.getDay()
+  const diff = (day === 0 ? -6 : 1) - day
+  startOfWeek.setDate(startOfWeek.getDate() + diff)
+  startOfWeek.setHours(0, 0, 0, 0)
   const { data: weekEntries } = await supabase
-    .from('time_entries')
-    .select('hours_worked, clock_in, clock_out, status')
-    .gte('clock_in', startOfWeek.toISOString());
-  const thisWeekHours = (weekEntries || []).reduce((sum, e) => sum + (e.hours_worked || 0), 0);
+    .from("time_entries")
+    .select("hours_worked")
+    .gte("clock_in", startOfWeek.toISOString())
+    .not("hours_worked", "is", null)
+  const thisWeekHours = (weekEntries || []).reduce((sum, e) => sum + (e.hours_worked || 0), 0)
 
-  // Recent activity
   const { data: recentData } = await supabase
-    .from('time_entries')
-    .select(
-      `id, clock_in, clock_out, hours_worked, updated_at, employee:employee_id ( id, first_name, last_name ), project:project_id ( id, name )`
-    )
-    .order('updated_at', { ascending: false })
-    .limit(5);
-  const recentEntries = (recentData || []) as unknown as RecentEntryRow[];
+    .from("time_entries")
+    .select("id, clock_in, clock_out, hours_worked, updated_at, employee_id, project_id")
+    .order("updated_at", { ascending: false })
+    .limit(5)
+  const recentEntries = (recentData || []) as RecentEntryRow[]
 
   return (
     <div className="p-6 space-y-6">
@@ -84,7 +100,12 @@ export default async function DashboardPage() {
           <CardContent>
             <div className="text-3xl font-bold">{activeWorkers.length}</div>
             <p className="text-xs text-muted-foreground mt-1">Currently clocked in</p>
-            <Sparkline data={Array.from({ length: 14 }, (_, i) => ({ x: i, y: (activeWorkers.length || 1) + Math.random() * 2 }))} />
+            <Sparkline
+              data={Array.from({ length: 14 }, (_, i) => ({
+                x: i,
+                y: Math.max(1, activeWorkers.length + Math.random() * 2 - 1),
+              }))}
+            />
           </CardContent>
         </Card>
 
@@ -130,11 +151,11 @@ export default async function DashboardPage() {
             ) : (
               <ul className="space-y-3">
                 {activeWorkers.map((row) => {
-                  const employeeName = row.employee
-                    ? `${row.employee.first_name} ${row.employee.last_name}`
-                    : 'Unknown Employee';
-                  const projectName = row.project ? row.project.name : 'Unknown Project';
-                  const clockIn = new Date(row.clock_in).toLocaleString();
+                  const employee = employeesMap.get(row.employee_id)
+                  const project = projectsMap.get(row.project_id)
+                  const employeeName = employee ? `${employee.first_name} ${employee.last_name}` : "Unknown Employee"
+                  const projectName = project ? project.name : "Unknown Project"
+                  const clockIn = new Date(row.clock_in).toLocaleString()
                   return (
                     <li key={row.id} className="flex items-center justify-between border rounded-md p-3">
                       <div>
@@ -143,7 +164,7 @@ export default async function DashboardPage() {
                       </div>
                       <Badge variant="secondary">{projectName}</Badge>
                     </li>
-                  );
+                  )
                 })}
               </ul>
             )}
@@ -160,13 +181,14 @@ export default async function DashboardPage() {
             ) : (
               <ul className="space-y-3">
                 {recentEntries.map((row) => {
-                  const employeeName = row.employee
-                    ? `${row.employee.first_name} ${row.employee.last_name}`
-                    : 'Unknown Employee';
-                  const projectName = row.project ? row.project.name : 'Unknown Project';
-                  const duration = row.hours_worked != null
-                    ? formatDuration(row.hours_worked)
-                    : formatDuration(Math.max(0, (Date.now() - new Date(row.clock_in).getTime()) / 3600000));
+                  const employee = employeesMap.get(row.employee_id)
+                  const project = projectsMap.get(row.project_id)
+                  const employeeName = employee ? `${employee.first_name} ${employee.last_name}` : "Unknown Employee"
+                  const projectName = project ? project.name : "Unknown Project"
+                  const duration =
+                    row.hours_worked != null
+                      ? formatDuration(row.hours_worked)
+                      : formatDuration(Math.max(0, (Date.now() - new Date(row.clock_in).getTime()) / 3600000))
                   return (
                     <li key={row.id} className="border rounded-md p-3">
                       <div className="flex items-center justify-between">
@@ -175,7 +197,7 @@ export default async function DashboardPage() {
                       </div>
                       <div className="text-xs text-muted-foreground mt-1">{projectName}</div>
                     </li>
-                  );
+                  )
                 })}
               </ul>
             )}
@@ -183,5 +205,5 @@ export default async function DashboardPage() {
         </Card>
       </div>
     </div>
-  );
+  )
 }
