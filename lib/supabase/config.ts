@@ -11,8 +11,8 @@ const getEnvVar = (key: string): string => {
 }
 
 export const supabaseConfig = {
-  url: getEnvVar("NEXT_PUBLIC_SUPABASE_URL") || getEnvVar("SUPABASE_URL"),
-  anonKey: getEnvVar("NEXT_PUBLIC_SUPABASE_ANON_KEY") || getEnvVar("SUPABASE_ANON_KEY"),
+  url: process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
 }
 
 // Debug logging

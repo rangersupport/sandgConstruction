@@ -1,9 +1,9 @@
-import { ProjectMap } from "@/components/map/project-map"
+import { ProjectMapMapbox } from "@/components/map/project-map-mapbox"
 
 export default function MapPage() {
   return (
     <div className="h-screen w-full">
-      <ProjectMap />
+      <ProjectMapMapbox />
     </div>
   )
 }

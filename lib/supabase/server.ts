@@ -1,20 +1,10 @@
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
-import { supabaseConfig } from "./config"
 
 export async function createClient() {
   const cookieStore = await cookies()
 
-  console.log("[v0] Creating server client with config:", {
-    hasUrl: !!supabaseConfig.url,
-    hasKey: !!supabaseConfig.anonKey,
-  })
-
-  if (!supabaseConfig.url || !supabaseConfig.anonKey) {
-    throw new Error("[v0] Supabase configuration is missing. Please check environment variables.")
-  }
-
-  return createServerClient(supabaseConfig.url, supabaseConfig.anonKey, {
+  return createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
     cookies: {
       getAll() {
         return cookieStore.getAll()
