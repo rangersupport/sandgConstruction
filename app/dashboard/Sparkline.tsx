@@ -12,5 +12,3 @@ export default function Sparkline({ data }: { data: { x: number; y: number }[] }
     </div>
   );
 }
-
-
