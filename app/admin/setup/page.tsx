@@ -24,6 +24,8 @@ export default function AdminSetupPage() {
     setError("")
     setLoading(true)
 
+    console.log("[v0] Admin setup: Starting account creation")
+
     if (password !== confirmPassword) {
       setError("Passwords do not match")
       setLoading(false)
@@ -39,34 +41,64 @@ export default function AdminSetupPage() {
     try {
       const supabase = createClient()
 
+      console.log("[v0] Admin setup: Attempting to sign up user:", email)
+
       // Sign up the admin user in Supabase Auth
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
           emailRedirectTo: window.location.origin + "/dashboard",
+          data: {
+            role: "admin",
+          },
         },
       })
 
-      if (signUpError) throw signUpError
+      console.log("[v0] Admin setup: SignUp response:", { data, error: signUpError })
+
+      if (signUpError) {
+        console.error("[v0] Admin setup: SignUp error:", signUpError)
+        throw signUpError
+      }
 
       if (data.user) {
+        console.log("[v0] Admin setup: User created in auth, adding to admin_users table")
+
         // Add admin to admin_users table
         const { error: insertError } = await supabase.from("admin_users").insert({
           email: email,
           name: "Administrator",
+          role: "super_admin",
+          is_active: true,
         })
 
         if (insertError) {
-          console.error("Error adding to admin_users:", insertError)
+          console.error("[v0] Admin setup: Error adding to admin_users:", insertError)
+          setError(`Account created but failed to set admin role: ${insertError.message}. Please contact support.`)
+          setLoading(false)
+          return
         }
 
+        console.log("[v0] Admin setup: Successfully added to admin_users table")
+
         setSuccess(true)
-        setTimeout(() => {
-          router.push("/admin/login")
-        }, 2000)
+
+        // Check if email confirmation is required
+        if (data.session) {
+          console.log("[v0] Admin setup: Session created, no email confirmation needed")
+          setTimeout(() => {
+            router.push("/dashboard")
+          }, 2000)
+        } else {
+          console.log("[v0] Admin setup: No session, email confirmation may be required")
+          setTimeout(() => {
+            router.push("/admin/login")
+          }, 3000)
+        }
       }
     } catch (err: any) {
+      console.error("[v0] Admin setup: Error:", err)
       setError(err.message || "Failed to create admin account")
     } finally {
       setLoading(false)
@@ -84,7 +116,8 @@ export default function AdminSetupPage() {
           {success ? (
             <div className="rounded-lg bg-green-50 p-4 text-green-800">
               <p className="font-medium">Admin account created successfully!</p>
-              <p className="text-sm">Redirecting to login...</p>
+              <p className="text-sm mt-2">You can now log in with your credentials.</p>
+              <p className="text-sm text-slate-600 mt-2">Redirecting to login...</p>
             </div>
           ) : (
             <form onSubmit={handleSetup} className="space-y-4">
@@ -110,6 +143,7 @@ export default function AdminSetupPage() {
                   required
                   disabled={loading}
                   minLength={6}
+                  placeholder="At least 6 characters"
                 />
               </div>
 
@@ -131,6 +165,10 @@ export default function AdminSetupPage() {
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? "Creating Account..." : "Create Admin Account"}
               </Button>
+
+              <p className="text-xs text-slate-500 text-center mt-4">
+                This will create an administrator account with full access to the dashboard.
+              </p>
             </form>
           )}
         </CardContent>

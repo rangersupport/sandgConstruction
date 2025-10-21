@@ -17,21 +17,33 @@ export interface AuthResult {
 // Admin login with email and password
 export async function adminLogin(email: string, password: string): Promise<AuthResult> {
   try {
+    console.log("[v0] adminLogin: Starting login for:", email)
     const supabase = await createClient()
 
     // Sign in with Supabase Auth
+    console.log("[v0] adminLogin: Calling supabase.auth.signInWithPassword")
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
 
+    console.log("[v0] adminLogin: Auth response:", {
+      hasUser: !!data.user,
+      hasSession: !!data.session,
+      error: error?.message,
+    })
+
     if (error) {
+      console.error("[v0] adminLogin: Auth error:", error.message)
       return { success: false, error: error.message }
     }
 
     if (!data.user) {
+      console.error("[v0] adminLogin: No user in response")
       return { success: false, error: "Authentication failed" }
     }
+
+    console.log("[v0] adminLogin: User authenticated, checking admin_users table")
 
     // Verify user is an admin
     const { data: adminUser, error: adminError } = await supabase
@@ -40,16 +52,25 @@ export async function adminLogin(email: string, password: string): Promise<AuthR
       .eq("email", email)
       .single()
 
+    console.log("[v0] adminLogin: Admin user lookup:", {
+      found: !!adminUser,
+      error: adminError?.message,
+    })
+
     if (adminError || !adminUser) {
+      console.error("[v0] adminLogin: Not an admin or error:", adminError?.message)
       // Sign out if not an admin
       await supabase.auth.signOut()
       return { success: false, error: "Unauthorized: Admin access required" }
     }
 
     if (!adminUser.is_active) {
+      console.error("[v0] adminLogin: Admin account is inactive")
       await supabase.auth.signOut()
       return { success: false, error: "Account is inactive" }
     }
+
+    console.log("[v0] adminLogin: Login successful for admin:", adminUser.email)
 
     return {
       success: true,
