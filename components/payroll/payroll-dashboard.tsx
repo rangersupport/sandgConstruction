@@ -78,7 +78,8 @@ export function PayrollDashboard() {
     setWeekStart(getWeekStart())
   }
 
-  const weekEnd = new Date(weekStart)
+  const weekStartDate = new Date(weekStart)
+  const weekEnd = new Date(weekStartDate)
   weekEnd.setDate(weekEnd.getDate() + 6)
 
   const totalRegularHours = payrollData.reduce((sum, emp) => sum + emp.regular_hours, 0)
@@ -109,7 +110,7 @@ export function PayrollDashboard() {
             </Button>
             <div className="flex-1 text-center">
               <div className="text-lg font-semibold">
-                {weekStart.toLocaleDateString()} - {weekEnd.toLocaleDateString()}
+                {weekStartDate.toLocaleDateString()} - {weekEnd.toLocaleDateString()}
               </div>
             </div>
             <Button variant="outline" onClick={handleNextWeek}>
