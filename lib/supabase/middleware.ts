@@ -30,8 +30,8 @@ export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
   // Public routes that don't require authentication
-  const publicRoutes = ["/employee/login", "/admin/login", "/login"]
-  const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route))
+  const publicRoutes = ["/", "/employee/login", "/admin/login", "/login"]
+  const isPublicRoute = publicRoutes.some((route) => pathname === route || pathname.startsWith(route))
 
   // Admin protected routes
   const adminRoutes = ["/dashboard", "/employees", "/projects", "/payroll", "/map", "/admin"]
