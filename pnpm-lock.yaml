@@ -51,7 +51,7 @@ importers:
         specifier: latest
         version: 3.3.0(@types/react@19.0.0)(react-dom@19.0.0(react@19.0.0))(react-is@16.13.1)(react@19.0.0)(redux@5.0.1)
       shadcn:
-        specifier: latest
+        specifier: 3.4.2
         version: 3.4.2(@types/node@22.0.0)(typescript@5.0.2)
       tailwind-merge:
         specifier: ^2.5.5
