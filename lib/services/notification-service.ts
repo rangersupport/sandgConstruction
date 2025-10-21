@@ -4,9 +4,10 @@
 // - SendGrid/Resend for Email
 
 export interface NotificationPayload {
-  to: string // phone number or email
+  to: string // email address
   message: string
-  method: "sms" | "email"
+  subject?: string
+  method?: "sms" | "email"
 }
 
 export interface NotificationResult {
@@ -16,62 +17,18 @@ export interface NotificationResult {
 }
 
 export async function sendNotification(payload: NotificationPayload): Promise<NotificationResult> {
-  console.log("[v0] Sending notification:", payload)
+  console.log("[v0] Notification logged:", {
+    to: payload.to,
+    subject: payload.subject || "Clock-Out Reminder",
+    message: payload.message,
+    timestamp: new Date().toISOString(),
+  })
 
-  try {
-    switch (payload.method) {
-      case "sms":
-        return await sendSMS(payload.to, payload.message)
-      case "email":
-        return await sendEmail(payload.to, payload.message)
-      default:
-        return {
-          success: false,
-          error: "Unsupported notification method",
-        }
-    }
-  } catch (error) {
-    console.error("[v0] Notification error:", error)
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
-    }
-  }
-}
-
-async function sendSMS(phoneNumber: string, message: string): Promise<NotificationResult> {
-  // TODO: Integrate with Twilio
-  // const twilio = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-  // const result = await twilio.messages.create({
-  //   body: message,
-  //   from: process.env.TWILIO_PHONE_NUMBER,
-  //   to: phoneNumber
-  // });
-
-  console.log(`[v0] SMS to ${phoneNumber}: ${message}`)
-
+  // For now, just log the notification
+  // TODO: Integrate with email service (SendGrid/Resend) when ready
   return {
     success: true,
-    messageId: `mock-sms-${Date.now()}`,
-  }
-}
-
-async function sendEmail(email: string, message: string): Promise<NotificationResult> {
-  // TODO: Integrate with SendGrid or Resend
-  // const sgMail = require('@sendgrid/mail');
-  // sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-  // const result = await sgMail.send({
-  //   to: email,
-  //   from: process.env.FROM_EMAIL,
-  //   subject: 'Clock-Out Reminder',
-  //   text: message
-  // });
-
-  console.log(`[v0] Email to ${email}: ${message}`)
-
-  return {
-    success: true,
-    messageId: `mock-email-${Date.now()}`,
+    messageId: `logged-${Date.now()}`,
   }
 }
 

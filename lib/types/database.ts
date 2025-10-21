@@ -91,8 +91,6 @@ export interface EmployeePreferences {
   employee_id: string
   reminder_hours: number
   auto_clockout_minutes: number
-  notification_method: "sms" | "email" // Removed whatsapp and push options
-  phone_number: string | null
   email: string | null
   created_at: string
   updated_at: string
@@ -113,14 +111,12 @@ export interface EmployeeNeedingReminder {
   time_entry_id: string
   employee_id: string
   employee_name: string
-  employee_phone: string | null
   employee_email: string | null
   project_id: string
   project_name: string
   clock_in: string
   hours_elapsed: number
   reminder_hours: number
-  notification_method: string
 }
 
 export interface EmployeeNeedingAutoClockout {

@@ -6,8 +6,7 @@ CREATE TABLE IF NOT EXISTS employee_preferences (
   employee_id UUID REFERENCES employees(id) ON DELETE CASCADE UNIQUE,
   reminder_hours INTEGER DEFAULT 8, -- Hours before sending reminder
   auto_clockout_minutes INTEGER DEFAULT 30, -- Minutes after reminder before auto clock-out
-  notification_method TEXT DEFAULT 'sms', -- 'sms', 'email'
-  phone_number TEXT,
+  -- Removed notification_method and phone_number fields - focusing on core functionality first
   email TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -42,14 +41,12 @@ RETURNS TABLE (
   time_entry_id UUID,
   employee_id UUID,
   employee_name TEXT,
-  employee_phone TEXT,
   employee_email TEXT,
   project_id UUID,
   project_name TEXT,
   clock_in TIMESTAMP WITH TIME ZONE,
   hours_elapsed DECIMAL,
-  reminder_hours INTEGER,
-  notification_method TEXT
+  reminder_hours INTEGER
 ) AS $$
 BEGIN
   RETURN QUERY
@@ -57,14 +54,12 @@ BEGIN
     te.id AS time_entry_id,
     te.employee_id,
     e.name AS employee_name,
-    COALESCE(ep.phone_number, e.phone) AS employee_phone,
     COALESCE(ep.email, e.email) AS employee_email,
     te.project_id,
     p.name AS project_name,
     te.clock_in,
     EXTRACT(EPOCH FROM (NOW() - te.clock_in)) / 3600 AS hours_elapsed,
-    COALESCE(ep.reminder_hours, 8) AS reminder_hours,
-    COALESCE(ep.notification_method, 'sms') AS notification_method
+    COALESCE(ep.reminder_hours, 8) AS reminder_hours
   FROM time_entries te
   JOIN employees e ON te.employee_id = e.id
   JOIN projects p ON te.project_id = p.id
@@ -111,9 +106,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Simplified default preferences - removed notification_method and phone_number
 -- Insert default preferences for existing employees
-INSERT INTO employee_preferences (employee_id, reminder_hours, auto_clockout_minutes, notification_method)
-SELECT id, 8, 30, 'sms'
+INSERT INTO employee_preferences (employee_id, reminder_hours, auto_clockout_minutes)
+SELECT id, 8, 30
 FROM employees
 WHERE id NOT IN (SELECT employee_id FROM employee_preferences WHERE employee_id IS NOT NULL)
 ON CONFLICT (employee_id) DO NOTHING;
