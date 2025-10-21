@@ -1,5 +1,15 @@
 import { createBrowserClient } from "@supabase/ssr"
+import { supabaseConfig } from "./config"
 
 export function createClient() {
-  return createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+  console.log("[v0] Creating browser client with config:", {
+    hasUrl: !!supabaseConfig.url,
+    hasKey: !!supabaseConfig.anonKey,
+  })
+
+  if (!supabaseConfig.url || !supabaseConfig.anonKey) {
+    throw new Error("[v0] Supabase configuration is missing. Please check environment variables.")
+  }
+
+  return createBrowserClient(supabaseConfig.url, supabaseConfig.anonKey)
 }

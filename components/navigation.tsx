@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { LayoutDashboard, Clock, Users, FolderKanban } from "lucide-react"
+import { LayoutDashboard, Clock, Users, FolderKanban, Map, DollarSign } from "lucide-react"
 
 const navItems = [
   {
@@ -15,6 +15,16 @@ const navItems = [
     title: "Time Clock",
     href: "/employee",
     icon: Clock,
+  },
+  {
+    title: "Map",
+    href: "/map",
+    icon: Map,
+  },
+  {
+    title: "Payroll",
+    href: "/payroll",
+    icon: DollarSign,
   },
   {
     title: "Employees",

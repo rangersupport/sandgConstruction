@@ -19,6 +19,66 @@ interface ClockOutData {
   accuracy: number
 }
 
+async function verifyLocationAtProject(
+  latitude: number,
+  longitude: number,
+  projectId: string,
+): Promise<{ verified: boolean; distance?: number; message?: string }> {
+  const supabase = await createClient()
+
+  // Get project location
+  const { data: project, error } = await supabase
+    .from("projects")
+    .select("latitude, longitude, geofence_radius")
+    .eq("id", projectId)
+    .single()
+
+  if (error || !project) {
+    return {
+      verified: false,
+      message: "Could not verify project location",
+    }
+  }
+
+  if (!project.latitude || !project.longitude) {
+    // If project doesn't have GPS coordinates, allow clock-in
+    return {
+      verified: true,
+      message: "Project location not configured",
+    }
+  }
+
+  // Calculate distance using Haversine formula
+  const R = 6371000 // Earth's radius in meters
+  const lat1 = (latitude * Math.PI) / 180
+  const lat2 = (project.latitude * Math.PI) / 180
+  const deltaLat = ((project.latitude - latitude) * Math.PI) / 180
+  const deltaLng = ((project.longitude - longitude) * Math.PI) / 180
+
+  const a =
+    Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLng / 2) * Math.sin(deltaLng / 2)
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  const distance = R * c
+
+  const geofenceRadius = project.geofence_radius || 100
+
+  if (distance <= geofenceRadius) {
+    return {
+      verified: true,
+      distance: Math.round(distance),
+      message: `Location verified (${Math.round(distance)}m from site)`,
+    }
+  } else {
+    return {
+      verified: false,
+      distance: Math.round(distance),
+      message: `You are ${Math.round(distance)}m from the project site. Please move closer (within ${geofenceRadius}m).`,
+    }
+  }
+}
+
 export async function getEmployeeStatus(employeeId: string): Promise<EmployeeStatus | null> {
   const supabase = await createClient()
 
@@ -73,16 +133,24 @@ export async function clockIn(data: ClockInData): Promise<{ success: boolean; er
     }
   }
 
+  const verification = await verifyLocationAtProject(data.latitude, data.longitude, data.projectId)
+
+  if (!verification.verified) {
+    return {
+      success: false,
+      error: verification.message || "Location verification failed",
+    }
+  }
+
   const { data: timeEntry, error } = await supabase
     .from("time_entries")
     .insert({
       employee_id: data.employeeId,
       project_id: data.projectId,
       clock_in: new Date().toISOString(),
-      clock_in_latitude: data.latitude,
-      clock_in_longitude: data.longitude,
-      clock_in_accuracy: data.accuracy,
-      status: "clocked_in",
+      clock_in_lat: data.latitude,
+      clock_in_lng: data.longitude,
+      location_verified: verification.verified,
     })
     .select()
     .single()
@@ -113,10 +181,8 @@ export async function clockOut(
     .from("time_entries")
     .update({
       clock_out: new Date().toISOString(),
-      clock_out_latitude: data.latitude,
-      clock_out_longitude: data.longitude,
-      clock_out_accuracy: data.accuracy,
-      status: "clocked_out",
+      clock_out_lat: data.latitude,
+      clock_out_lng: data.longitude,
     })
     .eq("id", data.timeEntryId)
     .select()
