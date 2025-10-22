@@ -44,6 +44,7 @@
 | Status | Text | Employment status |
 | Hourly_rate | Number | Hourly wage |
 | Title | Text | Job title |
+| FileMaker_Account | Text | FileMaker account name |
 | Date_Created | Date | Creation date |
 | Date_Modified | Date | Modification date |
 
@@ -55,6 +56,7 @@
 | Failed_Login_Attempts | Number | Default: 0 | Track failed login attempts |
 | Locked_Until | Timestamp | | Account lock timestamp |
 | Must_Change_PIN | Number | Default: 1 (boolean) | Force PIN change on first login |
+| Web_Admin_Role | Text | Values: "super_admin", "admin", "manager", "employee" | Web app access level |
 
 ---
 
@@ -89,23 +91,16 @@
 
 ---
 
-#### 4. AdminUsers Table
+## Admin Access via FileMaker Security
 
-**Table Name:** `AdminUsers`
-**Layout Name:** `AdminUsers` (create after table)
+**No separate AdminUsers table needed!** FileMaker handles security natively.
 
-**Fields to Create:**
-| Field Name | Type | Options | Purpose |
-|------------|------|---------|---------|
-| ID_admin | Text | Auto-enter: Serial, Indexed | Primary key |
-| Email | Text | Required, Indexed, Unique | Login email |
-| Password_Hash | Text | Required | Hashed password |
-| Name | Text | Required | Admin name |
-| Role | Text | Values: "super_admin", "admin", "manager" | Access level |
-| Is_Active | Number | Values: 0 or 1 (boolean) | Active status |
-| Last_Login | Timestamp | | Last login time |
-| Date_Created | Date | Auto-enter: Creation Date | Creation date |
-| Date_Modified | Date | Auto-enter: Modification Date | Modification date |
+**For Web App Admin Access:**
+- Add **Web_Admin_Role** field to STA_Staff table
+- Values: "super_admin", "admin", "manager", "employee"
+- Use existing **FileMaker_Account** field to link to FileMaker security
+- FileMaker privilege sets control database access
+- Web_Admin_Role controls web application features
 
 ---
 
@@ -128,36 +123,29 @@
 2. Go to **File → Manage → Database**
 3. Click **Fields** tab
 4. Select **STA_Staff** table
-5. Add these 5 new fields:
+5. Add these 6 new fields:
    - Employee_Login_Number (Text, Indexed, Unique)
    - PIN_Hash (Text, Indexed)
    - Failed_Login_Attempts (Number, Default: 0)
    - Locked_Until (Timestamp)
    - Must_Change_PIN (Number, Default: 1)
+   - Web_Admin_Role (Text, Default: "employee")
 
 ### Step 2: Create TimeEntries Table
 1. Click **Tables** tab
 2. Create new table: **TimeEntries**
 3. Click **Fields** tab
 4. Select **TimeEntries** table
-5. Add all fields listed above
+5. Add all 17 fields listed above
 
-### Step 3: Create AdminUsers Table
-1. Click **Tables** tab
-2. Create new table: **AdminUsers**
-3. Click **Fields** tab
-4. Select **AdminUsers** table
-5. Add all fields listed above
-
-### Step 4: Create Relationships
+### Step 3: Create Relationships
 1. Click **Relationships** tab
 2. Add relationship: **TimeEntries::Employee_ID = STA_Staff::ID_staff**
 3. Add relationship: **TimeEntries::Project_ID = PRJ_Projects::_link_Project IDs | GIRR**
 
-### Step 5: Create Layouts
+### Step 4: Create Layout
 1. Go to **Layout Mode** (Cmd+L or Ctrl+L)
 2. Create layout for **TimeEntries** table
-3. Create layout for **AdminUsers** table
 
 ---
 
@@ -166,11 +154,11 @@
 **What's Already Done:**
 - ✅ Projects table (PRJ_Projects) with 121 fields and calendar widgets
 - ✅ Employees table (STA_Staff) with 97 fields and layout L1220_STAFF_List_Entry
+- ✅ FileMaker security system handles admin authentication
 
 **What You Need to Do:**
-- 🔨 Add 5 new fields to STA_Staff table (Employee_Login_Number, PIN_Hash, etc.)
+- 🔨 Add 6 new fields to STA_Staff table (Employee_Login_Number, PIN_Hash, Web_Admin_Role, etc.)
 - 🔨 Create TimeEntries table with 17 fields and layout
-- 🔨 Create AdminUsers table with 9 fields and layout
 - 🔨 Create 2 relationships
 
 **How Dual-Write Works:**

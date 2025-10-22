@@ -36,6 +36,7 @@ export const EMPLOYEE_FIELDS = {
   FAILED_LOGIN_ATTEMPTS: "Failed_Login_Attempts", // Need to add this field
   LOCKED_UNTIL: "Locked_Until", // Need to add this field
   MUST_CHANGE_PIN: "Must_Change_PIN", // Need to add this field
+  WEB_ADMIN_ROLE: "Web_Admin_Role", // Need to add this field - for web app admin access
 } as const
 
 export const PROJECT_FIELDS = {
