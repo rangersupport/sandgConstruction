@@ -7,6 +7,7 @@ export async function GET() {
     console.log("[v0] Server URL:", process.env.FILEMAKER_SERVER_URL)
     console.log("[v0] Database:", process.env.FILEMAKER_DATABASE)
     console.log("[v0] Username:", process.env.FILEMAKER_USERNAME)
+    console.log("[v0] Password set:", !!process.env.FILEMAKER_PASSWORD)
 
     // Test 1: Get employees from STA_Staff
     console.log("[v0] Fetching employees from L1220_STAFF_List_Entry layout...")
@@ -34,11 +35,16 @@ export async function GET() {
     })
   } catch (error) {
     console.error("[v0] FileMaker connection error:", error)
+    console.error("[v0] Error type:", error instanceof Error ? error.constructor.name : typeof error)
+    console.error("[v0] Error message:", error instanceof Error ? error.message : String(error))
+    console.error("[v0] Error stack:", error instanceof Error ? error.stack : "No stack trace")
+
     return NextResponse.json(
       {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
-        details: error,
+        errorType: error instanceof Error ? error.constructor.name : typeof error,
+        stack: error instanceof Error ? error.stack : undefined,
       },
       { status: 500 },
     )

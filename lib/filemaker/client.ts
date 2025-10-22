@@ -17,7 +17,15 @@ export class FileMakerClient {
   private async getToken(): Promise<string> {
     if (this.token) return this.token
 
-    const response = await fetch(`${this.baseUrl}/fmi/data/v1/databases/${this.database}/sessions`, {
+    console.log("[v0] FileMaker auth - Base URL:", this.baseUrl)
+    console.log("[v0] FileMaker auth - Database:", this.database)
+    console.log("[v0] FileMaker auth - Username:", this.username)
+    console.log("[v0] FileMaker auth - Password length:", this.password?.length || 0)
+
+    const authUrl = `${this.baseUrl}/fmi/data/v1/databases/${this.database}/sessions`
+    console.log("[v0] FileMaker auth URL:", authUrl)
+
+    const response = await fetch(authUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -25,11 +33,17 @@ export class FileMakerClient {
       },
     })
 
+    console.log("[v0] FileMaker auth response status:", response.status)
+    console.log("[v0] FileMaker auth response ok:", response.ok)
+
     if (!response.ok) {
-      throw new Error("Failed to authenticate with FileMaker")
+      const errorText = await response.text()
+      console.error("[v0] FileMaker auth failed:", errorText)
+      throw new Error(`Failed to authenticate with FileMaker: ${response.status} - ${errorText}`)
     }
 
     const data = await response.json()
+    console.log("[v0] FileMaker auth successful, token received")
     this.token = data.response.token
     return this.token
   }
