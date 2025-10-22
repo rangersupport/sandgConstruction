@@ -6,14 +6,6 @@ import { processAllReminders } from "@/lib/actions/reminder-actions"
 
 export async function GET(request: Request) {
   try {
-    // Verify the request is from a trusted source (cron job)
-    const authHeader = request.headers.get("authorization")
-    const cronSecret = process.env.CRON_SECRET || "your-secret-key"
-
-    if (authHeader !== `Bearer ${cronSecret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
     console.log("[v0] Running reminder check...")
 
     const result = await processAllReminders()
