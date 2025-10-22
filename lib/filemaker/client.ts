@@ -1,5 +1,3 @@
-"use server"
-
 // FileMaker Data API client
 export class FileMakerClient {
   private baseUrl: string
