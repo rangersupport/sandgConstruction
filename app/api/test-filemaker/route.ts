@@ -10,13 +10,13 @@ export async function GET() {
     console.log("[v0] Password set:", !!process.env.FILEMAKER_PASSWORD)
 
     // Test 1: Get employees from STA_Staff
-    console.log("[v0] Fetching employees from L1220_STAFF_List_Entry layout...")
-    const employeesResult = await fileMaker.getRecords("L1220_STAFF_List_Entry", 5)
+    console.log("[v0] Fetching employees from T17_STAFF layout...")
+    const employeesResult = await fileMaker.getRecords("T17_STAFF", 5)
     console.log("[v0] Employees fetched:", employeesResult.response?.data?.length || 0)
 
     // Test 2: Get projects from PRJ_Projects
-    console.log("[v0] Fetching projects from PRJ_Projects layout...")
-    const projectsResult = await fileMaker.getRecords("PRJ_Projects", 5)
+    console.log("[v0] Fetching projects from T19_PROJECTS layout...")
+    const projectsResult = await fileMaker.getRecords("T19_PROJECTS", 5)
     console.log("[v0] Projects fetched:", projectsResult.response?.data?.length || 0)
 
     return NextResponse.json({

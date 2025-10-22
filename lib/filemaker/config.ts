@@ -1,9 +1,9 @@
 // FileMaker layout names configuration
 export const FILEMAKER_LAYOUTS = {
-  EMPLOYEES: "L1220_STAFF_List_Entry",
-  TIME_ENTRIES: "TimeEntries", // You need to create this layout
-  PROJECTS: "PRJ_Projects", // Using existing Projects table
-  ADMIN_USERS: "AdminUsers", // You need to create this layout
+  EMPLOYEES: "T17_STAFF",
+  TIME_ENTRIES: "T17z_TimeEntries",
+  PROJECTS: "T19_PROJECTS",
+  ADMIN_USERS: "AdminUsers",
 } as const
 
 export const EMPLOYEE_FIELDS = {
