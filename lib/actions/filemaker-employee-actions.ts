@@ -11,13 +11,18 @@ export async function getAllEmployeesFileMaker() {
       success: true,
       employees: result.response.data.map((record: any) => ({
         id: record.fieldData[EMPLOYEE_FIELDS.ID],
-        employee_number: record.fieldData[EMPLOYEE_FIELDS.NUMBER],
-        name: record.fieldData[EMPLOYEE_FIELDS.NAME],
-        phone: record.fieldData[EMPLOYEE_FIELDS.PHONE],
+        employee_number: record.fieldData[EMPLOYEE_FIELDS.EMPLOYEE_NUMBER],
+        name: record.fieldData[EMPLOYEE_FIELDS.NAME_FULL],
+        first_name: record.fieldData[EMPLOYEE_FIELDS.NAME_FIRST],
+        last_name: record.fieldData[EMPLOYEE_FIELDS.NAME_LAST],
+        phone: record.fieldData[EMPLOYEE_FIELDS.PHONE1],
+        cell: record.fieldData[EMPLOYEE_FIELDS.CELL],
         email: record.fieldData[EMPLOYEE_FIELDS.EMAIL],
-        role: record.fieldData[EMPLOYEE_FIELDS.ROLE],
-        hourly_wage: record.fieldData[EMPLOYEE_FIELDS.HOURLY_WAGE],
+        role: record.fieldData[EMPLOYEE_FIELDS.CATEGORY],
+        department: record.fieldData[EMPLOYEE_FIELDS.DEPARTMENT],
+        hourly_wage: record.fieldData[EMPLOYEE_FIELDS.HOURLY_RATE],
         status: record.fieldData[EMPLOYEE_FIELDS.STATUS],
+        title: record.fieldData[EMPLOYEE_FIELDS.TITLE],
       })),
     }
   } catch (error) {
@@ -28,9 +33,8 @@ export async function getAllEmployeesFileMaker() {
 
 export async function authenticateEmployeeFileMaker(employeeNumber: string, pin: string) {
   try {
-    // Find employee by employee number
     const result = await fileMaker.findRecords(FILEMAKER_LAYOUTS.EMPLOYEES, [
-      { [EMPLOYEE_FIELDS.NUMBER]: employeeNumber },
+      { [EMPLOYEE_FIELDS.EMPLOYEE_NUMBER]: employeeNumber },
     ])
 
     if (!result.response.data || result.response.data.length === 0) {
@@ -51,9 +55,9 @@ export async function authenticateEmployeeFileMaker(employeeNumber: string, pin:
       success: true,
       employee: {
         id: employee[EMPLOYEE_FIELDS.ID],
-        employee_number: employee[EMPLOYEE_FIELDS.NUMBER],
-        name: employee[EMPLOYEE_FIELDS.NAME],
-        role: employee[EMPLOYEE_FIELDS.ROLE],
+        employee_number: employee[EMPLOYEE_FIELDS.EMPLOYEE_NUMBER],
+        name: employee[EMPLOYEE_FIELDS.NAME_FULL],
+        role: employee[EMPLOYEE_FIELDS.CATEGORY],
       },
     }
   } catch (error) {
