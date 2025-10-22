@@ -1,6 +1,7 @@
 "use server"
 
 import { createClient } from "@/lib/supabase/server"
+import { fileMaker } from "@/lib/filemaker/client"
 import { revalidatePath } from "next/cache"
 import type { TimeEntry, EmployeeStatus } from "@/lib/types/database"
 
@@ -143,12 +144,34 @@ export async function clockIn(data: ClockInData): Promise<{ success: boolean; er
     }
   }
 
+  const clockInTime = new Date().toISOString()
+
+  try {
+    // Write to FileMaker first (master data source)
+    const fileMakerResult = await fileMaker.createRecord("TimeEntries", {
+      employee_id: data.employeeId,
+      project_id: data.projectId,
+      clock_in: clockInTime,
+      clock_in_lat: data.latitude,
+      clock_in_lng: data.longitude,
+      location_verified: verification.verified,
+      distance_from_project: verification.distance || 0,
+      status: "clocked_in",
+    })
+
+    console.log("[v0] FileMaker clock in successful:", fileMakerResult)
+  } catch (error) {
+    console.error("[v0] FileMaker clock in failed:", error)
+    // Continue to Supabase even if FileMaker fails (for demo purposes)
+  }
+
+  // Write to Supabase (for mapping and real-time updates)
   const { data: timeEntry, error } = await supabase
     .from("time_entries")
     .insert({
       employee_id: data.employeeId,
       project_id: data.projectId,
-      clock_in: new Date().toISOString(),
+      clock_in: clockInTime,
       clock_in_lat: data.latitude,
       clock_in_lng: data.longitude,
       location_verified: verification.verified,
@@ -158,7 +181,7 @@ export async function clockIn(data: ClockInData): Promise<{ success: boolean; er
     .single()
 
   if (error) {
-    console.error("Error clocking in:", error)
+    console.error("Error clocking in to Supabase:", error)
     return {
       success: false,
       error: error.message,
@@ -179,10 +202,45 @@ export async function clockOut(
 ): Promise<{ success: boolean; error?: string; timeEntry?: TimeEntry }> {
   const supabase = await createClient()
 
+  const clockOutTime = new Date().toISOString()
+
+  try {
+    // Get the time entry from Supabase to find employee_id
+    const { data: existingEntry } = await supabase
+      .from("time_entries")
+      .select("employee_id")
+      .eq("id", data.timeEntryId)
+      .single()
+
+    if (existingEntry) {
+      // Find and update in FileMaker
+      const fileMakerRecords = await fileMaker.findRecords("TimeEntries", [
+        { employee_id: existingEntry.employee_id, status: "clocked_in" },
+      ])
+
+      if (fileMakerRecords.response.data && fileMakerRecords.response.data.length > 0) {
+        const recordId = fileMakerRecords.response.data[0].recordId
+
+        await fileMaker.updateRecord("TimeEntries", recordId, {
+          clock_out: clockOutTime,
+          clock_out_lat: data.latitude,
+          clock_out_lng: data.longitude,
+          status: "clocked_out",
+        })
+
+        console.log("[v0] FileMaker clock out successful")
+      }
+    }
+  } catch (error) {
+    console.error("[v0] FileMaker clock out failed:", error)
+    // Continue to Supabase even if FileMaker fails
+  }
+
+  // Update Supabase (for mapping)
   const { data: timeEntry, error } = await supabase
     .from("time_entries")
     .update({
-      clock_out: new Date().toISOString(),
+      clock_out: clockOutTime,
       clock_out_lat: data.latitude,
       clock_out_lng: data.longitude,
     })
@@ -191,7 +249,7 @@ export async function clockOut(
     .single()
 
   if (error) {
-    console.error("Error clocking out:", error)
+    console.error("Error clocking out in Supabase:", error)
     return {
       success: false,
       error: error.message,
