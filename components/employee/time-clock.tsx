@@ -14,6 +14,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Clock, MapPin, Loader2, AlertCircle, CheckCircle2, AlertTriangle } from "lucide-react"
 import type { Project, EmployeeStatus } from "@/lib/types/database"
 
@@ -30,6 +40,7 @@ export function TimeClock({ employeeId, employeeName }: TimeClockProps) {
   const [selectedProjectId, setSelectedProjectId] = useState<string>("")
   const [todayHours, setTodayHours] = useState<number>(0)
   const [elapsedTime, setElapsedTime] = useState<string>("0:00")
+  const [showClockOutDialog, setShowClockOutDialog] = useState(false)
 
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: "success" | "error" | "warning"; text: string } | null>(null)
@@ -68,12 +79,7 @@ export function TimeClock({ employeeId, employeeName }: TimeClockProps) {
       setProjects(projectsData)
       setTodayHours(hoursData)
 
-      if (statusData?.is_clocked_in) {
-        setMessage({
-          type: "warning",
-          text: `You are currently clocked in at ${statusData.project_name}. Please clock out before clocking in again.`,
-        })
-      }
+      setMessage(null)
     } catch (error) {
       console.error("Error loading data:", error)
       setMessage({ type: "error", text: "Failed to load data" })
@@ -82,10 +88,7 @@ export function TimeClock({ employeeId, employeeName }: TimeClockProps) {
 
   async function handleClockIn() {
     if (status?.is_clocked_in) {
-      setMessage({
-        type: "error",
-        text: `You are already clocked in at ${status.project_name} since ${new Date(status.clock_in!).toLocaleTimeString()}. Please clock out first.`,
-      })
+      setShowClockOutDialog(true)
       return
     }
 
@@ -121,20 +124,31 @@ export function TimeClock({ employeeId, employeeName }: TimeClockProps) {
     setLoading(false)
   }
 
-  async function handleClockOut() {
+  async function handleClockOutClick() {
+    if (!status?.is_clocked_in) {
+      setMessage({ type: "error", text: "You are not clocked in" })
+      return
+    }
+    setShowClockOutDialog(true)
+  }
+
+  async function confirmClockOut() {
     if (!status?.time_entry_id) {
       setMessage({ type: "error", text: "No active clock-in found" })
+      setShowClockOutDialog(false)
       return
     }
 
     if (!coordinates) {
       setMessage({ type: "error", text: "Waiting for GPS location..." })
       requestLocation()
+      setShowClockOutDialog(false)
       return
     }
 
     setLoading(true)
     setMessage(null)
+    setShowClockOutDialog(false)
 
     const result = await clockOut({
       timeEntryId: status.time_entry_id,
@@ -166,10 +180,18 @@ export function TimeClock({ employeeId, employeeName }: TimeClockProps) {
         <Alert className="border-orange-500 bg-orange-50 dark:bg-orange-950">
           <AlertTriangle className="h-5 w-5 text-orange-600" />
           <AlertDescription className="text-orange-900 dark:text-orange-100">
-            <div className="font-semibold">Active Session</div>
-            <div className="text-sm mt-1">
-              You are clocked in at <span className="font-semibold">{status.project_name}</span> since{" "}
-              {new Date(status.clock_in!).toLocaleTimeString()}
+            <div className="font-semibold text-lg">You Are Currently Clocked In</div>
+            <div className="text-sm mt-2">
+              <strong>Project:</strong> {status.project_name}
+            </div>
+            <div className="text-sm">
+              <strong>Clock In Time:</strong> {new Date(status.clock_in!).toLocaleString()}
+            </div>
+            <div className="text-sm">
+              <strong>Time Elapsed:</strong> {elapsedTime}
+            </div>
+            <div className="text-sm mt-2 font-semibold">
+              Click "Clock Out" below when you're ready to end your shift.
             </div>
           </AlertDescription>
         </Alert>
@@ -259,7 +281,7 @@ export function TimeClock({ employeeId, employeeName }: TimeClockProps) {
           <Button
             className="w-full h-16 text-lg font-semibold"
             variant={status?.is_clocked_in ? "destructive" : "default"}
-            onClick={status?.is_clocked_in ? handleClockOut : handleClockIn}
+            onClick={status?.is_clocked_in ? handleClockOutClick : handleClockIn}
             disabled={
               loading ||
               gpsLoading ||
@@ -290,6 +312,27 @@ export function TimeClock({ employeeId, employeeName }: TimeClockProps) {
           )}
         </CardContent>
       </Card>
+
+      <AlertDialog open={showClockOutDialog} onOpenChange={setShowClockOutDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clock Out Confirmation</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <div>
+                You clocked in at <strong>{status?.clock_in ? new Date(status.clock_in).toLocaleString() : ""}</strong>
+              </div>
+              <div>
+                You have been working for: <strong className="text-lg">{elapsedTime}</strong>
+              </div>
+              <div className="pt-2">Are you sure you want to clock out now?</div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmClockOut}>Yes, Clock Out</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
