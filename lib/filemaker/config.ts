@@ -31,8 +31,7 @@ export const EMPLOYEE_FIELDS = {
   FILEMAKER_ACCOUNT: "FileMaker_Account",
   DATE_CREATED: "Date_Created",
   DATE_MODIFIED: "Date_Modified",
-  // Missing fields that need to be added to STA_Staff:
-  EMPLOYEE_NUMBER: "Employee_Number", // Need to add this field
+  EMPLOYEE_LOGIN_NUMBER: "Employee_Login_Number", // Need to add this field
   PIN_HASH: "PIN_Hash", // Need to add this field
   FAILED_LOGIN_ATTEMPTS: "Failed_Login_Attempts", // Need to add this field
   LOCKED_UNTIL: "Locked_Until", // Need to add this field

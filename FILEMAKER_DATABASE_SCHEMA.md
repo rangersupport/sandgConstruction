@@ -50,7 +50,7 @@
 **🔨 NEW FIELDS TO ADD to STA_Staff:**
 | Field Name | Type | Options | Purpose |
 |------------|------|---------|---------|
-| Employee_Number | Text | Indexed, Unique | Easy ID like 1001, 1002 for clock in |
+| Employee_Login_Number | Text | Indexed, Unique | Easy ID like 1001, 1002 for clock in |
 | PIN_Hash | Text | Indexed | Hashed 4-digit PIN for authentication |
 | Failed_Login_Attempts | Number | Default: 0 | Track failed login attempts |
 | Locked_Until | Timestamp | | Account lock timestamp |
@@ -129,7 +129,7 @@
 3. Click **Fields** tab
 4. Select **STA_Staff** table
 5. Add these 5 new fields:
-   - Employee_Number (Text, Indexed, Unique)
+   - Employee_Login_Number (Text, Indexed, Unique)
    - PIN_Hash (Text, Indexed)
    - Failed_Login_Attempts (Number, Default: 0)
    - Locked_Until (Timestamp)
@@ -168,7 +168,7 @@
 - ✅ Employees table (STA_Staff) with 97 fields and layout L1220_STAFF_List_Entry
 
 **What You Need to Do:**
-- 🔨 Add 5 new fields to STA_Staff table (Employee_Number, PIN_Hash, etc.)
+- 🔨 Add 5 new fields to STA_Staff table (Employee_Login_Number, PIN_Hash, etc.)
 - 🔨 Create TimeEntries table with 17 fields and layout
 - 🔨 Create AdminUsers table with 9 fields and layout
 - 🔨 Create 2 relationships
