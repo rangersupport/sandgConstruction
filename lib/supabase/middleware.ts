@@ -22,60 +22,10 @@ export async function updateSession(request: NextRequest) {
     },
   })
 
-  // Get user session
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // This allows testers to access the dashboard and map without login
 
-  const pathname = request.nextUrl.pathname
+  // Just refresh the session if it exists, but don't enforce any redirects
+  await supabase.auth.getUser()
 
-  console.log("[v0] Middleware running for path:", pathname)
-  console.log("[v0] User authenticated:", !!user)
-  console.log("[v0] User email:", user?.email || "none")
-
-  // Public routes that don't require authentication
-  const isLoginPage = pathname === "/admin/login" || pathname === "/employee/login" || pathname === "/login"
-  const isSetupPage = pathname === "/admin/setup"
-  const isRootPage = pathname === "/"
-  const isPublicRoute = isLoginPage || isRootPage || isSetupPage
-
-  // Admin protected routes - must come before employee check
-  // Exclude /admin/login and /admin/setup from protected routes
-  const isAdminRoute =
-    pathname.startsWith("/dashboard") ||
-    pathname.startsWith("/employees") ||
-    pathname.startsWith("/projects") ||
-    pathname.startsWith("/payroll") ||
-    pathname.startsWith("/map") ||
-    (pathname.startsWith("/admin") && !isLoginPage && !isSetupPage)
-
-  // Employee protected routes - only /employee and /employee/* but NOT /employee/login
-  const isEmployeeRoute = pathname === "/employee" || (pathname.startsWith("/employee/") && !isLoginPage)
-
-  console.log("[v0] Is public route:", isPublicRoute)
-  console.log("[v0] Is admin route:", isAdminRoute)
-  console.log("[v0] Is employee route:", isEmployeeRoute)
-
-  if (!user && (isAdminRoute || isEmployeeRoute)) {
-    console.log("[v0] Redirecting to login - protected route without auth")
-    const url = request.nextUrl.clone()
-    url.pathname = isAdminRoute ? "/admin/login" : "/employee/login"
-    url.searchParams.set("redirect", pathname)
-    return NextResponse.redirect(url)
-  }
-
-  if (user && isLoginPage) {
-    // Check if user is admin
-    const { data: adminUser } = await supabase.from("admin_users").select("id").eq("email", user.email).single()
-
-    console.log("[v0] User is admin:", !!adminUser)
-
-    const url = request.nextUrl.clone()
-    url.pathname = adminUser ? "/dashboard" : "/employee"
-    console.log("[v0] Redirecting authenticated user to:", url.pathname)
-    return NextResponse.redirect(url)
-  }
-
-  console.log("[v0] No redirect needed, continuing")
   return supabaseResponse
 }
