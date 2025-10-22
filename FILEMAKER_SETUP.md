@@ -11,7 +11,7 @@ Employee clocks in/out
     ↓
 Next.js writes to BOTH:
     ├─→ FileMaker (full business data)
-    └─→ Supabase (location data for mapping)
+    └──→ Supabase (location data for mapping)
     
 Reports/Payroll ← FileMaker
 Map Display ← Supabase
@@ -91,14 +91,22 @@ Fields:
 
 ### 4. Configure Environment Variables
 
-Add these to your Netlify environment variables:
+Add these to your Netlify environment variables (Settings > Environment Variables):
 
 \`\`\`
-FILEMAKER_SERVER_URL=https://your-filemaker-server.com
-FILEMAKER_DATABASE=YourDatabaseName
-FILEMAKER_USERNAME=api_user
-FILEMAKER_PASSWORD=your_secure_password
+FILEMAKER_SERVER_URL=https://a0111065.fmphost.com
+FILEMAKER_DATABASE=SandGservices.fmp12
+FILEMAKER_USERNAME=admin
+FILEMAKER_PASSWORD=707070Sss$
 \`\`\`
+
+**To add in Netlify:**
+1. Go to your Netlify dashboard
+2. Select your site (sandgservice.com)
+3. Go to **Site settings** > **Environment variables**
+4. Click **Add a variable**
+5. Add each variable above
+6. Redeploy your site
 
 ### 5. Test Connection
 
