@@ -162,3 +162,36 @@ After deploying, the system will:
 - Map reads from Supabase only
 - Check Supabase connection
 - Verify location data is being written to Supabase
+
+## Your FileMaker Configuration
+
+**Server Details:**
+- Host: `a0111065.fmphost.com`
+- Database: `SandGservices.fmp12`
+- Username: `admin`
+- Password: `707070Sss$`
+
+**Existing Layouts:**
+- ✅ Employees: `L1220_STAFF_List_Entry`
+
+**Layouts You Need to Create:**
+- ⚠️ TimeEntries: Create a layout called `TimeEntries`
+- ⚠️ Projects: Create a layout called `Projects`  
+- ⚠️ AdminUsers: Create a layout called `AdminUsers`
+
+### Next Steps
+
+1. **Create the missing layouts in FileMaker:**
+   - TimeEntries layout with fields listed above
+   - Projects layout with fields listed above
+   - AdminUsers layout with fields listed above
+
+2. **Add environment variables to Netlify:**
+   \`\`\`
+   FILEMAKER_SERVER_URL=https://a0111065.fmphost.com
+   FILEMAKER_DATABASE=SandGservices.fmp12
+   FILEMAKER_USERNAME=admin
+   FILEMAKER_PASSWORD=707070Sss$
+   \`\`\`
+
+3. **Test the connection** by trying to clock in/out
