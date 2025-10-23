@@ -176,6 +176,7 @@ export function TimeClock({ employeeId, employeeName }: TimeClockProps) {
 
     setLoading(true)
     setMessage(null)
+    setDebugData(null) // Clear previous debug data
 
     try {
       const response = await fetch("/api/debug-clock-in", {
@@ -194,17 +195,31 @@ export function TimeClock({ employeeId, employeeName }: TimeClockProps) {
         }),
       })
 
+      if (!response.ok) {
+        throw new Error(`API returned ${response.status}: ${response.statusText}`)
+      }
+
       const data = await response.json()
+
+      if (!data || !data.comparison) {
+        throw new Error("Invalid response structure from debug API")
+      }
+
       setDebugData(data.comparison)
       setMessage({
         type: "success",
         text: "Debug data loaded! Check below to see what would be sent to FileMaker.",
       })
     } catch (error) {
-      setMessage({ type: "error", text: "Debug failed: " + String(error) })
+      console.error("[v0] Debug error:", error) // Added debug logging
+      setMessage({
+        type: "error",
+        text: `Debug failed: ${error instanceof Error ? error.message : String(error)}`,
+      })
+      setDebugData(null)
+    } finally {
+      setLoading(false) // Ensure loading is always cleared
     }
-
-    setLoading(false)
   }
 
   return (
