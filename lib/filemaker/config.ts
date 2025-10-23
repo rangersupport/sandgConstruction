@@ -56,21 +56,23 @@ export const PROJECT_FIELDS = {
 
 export const TIME_ENTRY_FIELDS = {
   ID: "ID_time_entry", // Auto-enter Serial
-  EMPLOYEE_ID: "Employee_ID", // Link to STA_Staff::ID_staff
-  EMPLOYEE_NAME: "Employee_Name", // Lookup from STA_Staff::Name_Full
-  PROJECT_ID: "Project_ID", // Link to PRJ_Projects::_link_Project IDs | GIRR
-  PROJECT_NAME: "Project_Name", // Lookup from PRJ_Projects::Account_Name
-  CLOCK_IN: "Clock_In", // Timestamp
-  CLOCK_OUT: "Clock_Out", // Timestamp
-  CLOCK_IN_LAT: "Clock_In_Latitude", // Number
-  CLOCK_IN_LNG: "Clock_In_Longitude", // Number
-  CLOCK_OUT_LAT: "Clock_Out_Latitude", // Number
-  CLOCK_OUT_LNG: "Clock_Out_Longitude", // Number
-  TOTAL_HOURS: "Total_Hours", // Calculation: Hours between Clock_In and Clock_Out
-  STATUS: "Status", // Text: "clocked_in", "clocked_out"
-  NOTES: "Notes", // Text
-  DATE_CREATED: "Date_Created", // Date (Creation Date)
-  DATE_MODIFIED: "Date_Modified", // Date (Modification Date)
-  TIME_CREATED: "Time_Created", // Time (Creation Time)
-  TIME_MODIFIED: "Time_Modified", // Time (Modification Time)
+  EMPLOYEE_ID: "employee_id", // Link to STA_Staff::ID_staff
+  EMPLOYEE_NAME: "employee_name", // Lookup from STA_Staff::Name_Full
+  PROJECT_ID: "project_id", // Link to PRJ_Projects::_link_Project IDs | GIRR
+  PROJECT_NAME: "project_name", // Lookup from PRJ_Projects::Account_Name
+  CLOCK_IN: "clock_in", // Timestamp
+  CLOCK_OUT: "clock_out", // Timestamp
+  CLOCK_IN_LAT: "clock_in_lat", // Number (changed from Clock_In_Latitude)
+  CLOCK_IN_LNG: "clock_in_lng", // Number (changed from Clock_In_Longitude)
+  CLOCK_OUT_LAT: "clock_out_lat", // Number (changed from Clock_Out_Latitude)
+  CLOCK_OUT_LNG: "clock_out_lng", // Number (changed from Clock_Out_Longitude)
+  CLOCK_IN_LOCATION: "clock_in_location", // Text field for location description
+  CLOCK_OUT_LOCATION: "clock_out_location", // Text field for location description
+  TOTAL_HOURS: "total_hours", // Calculation: Hours between clock_in and clock_out
+  STATUS: "status", // Text: "clocked_in", "clocked_out"
+  NOTES: "notes", // Text
+  CREATED_AT: "created_at", // Timestamp (Creation)
+  MODIFIED_AT: "modified_at", // Timestamp (Modification)
+  CREATOR: "creator", // Text (Created by)
+  MODIFIER: "modifier", // Text (Modified by)
 } as const
