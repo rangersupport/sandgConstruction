@@ -19,12 +19,12 @@ export function LocationPermissionDialog({ open, onOpenChange, onRetry }: Locati
       <DialogContent className="max-w-md">
         <DialogHeader>
           <div className="flex items-center justify-center mb-4">
-            <div className="rounded-full bg-orange-100 dark:bg-orange-900 p-3">
-              <MapPin className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+            <div className="rounded-full bg-orange-100 p-3">
+              <MapPin className="h-6 w-6 text-orange-600" />
             </div>
           </div>
-          <DialogTitle className="text-center">Location Access Required</DialogTitle>
-          <DialogDescription className="text-center">
+          <DialogTitle className="text-center text-gray-900">Location Access Required</DialogTitle>
+          <DialogDescription className="text-center text-gray-600">
             This app needs your location to record where you clock in and out.
           </DialogDescription>
         </DialogHeader>
@@ -32,12 +32,12 @@ export function LocationPermissionDialog({ open, onOpenChange, onRetry }: Locati
         <div className="space-y-4 py-4">
           {isIOS || isSafari ? (
             <>
-              <div className="bg-muted p-4 rounded-lg space-y-3">
+              <div className="bg-gray-100 p-4 rounded-lg space-y-3">
                 <div className="flex items-start gap-3">
-                  <Smartphone className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
+                  <Smartphone className="h-5 w-5 text-gray-600 mt-0.5 flex-shrink-0" />
                   <div className="space-y-2 text-sm">
-                    <p className="font-semibold">To enable location on iPhone/Safari:</p>
-                    <ol className="list-decimal list-inside space-y-1.5 text-muted-foreground">
+                    <p className="font-semibold text-gray-900">To enable location on iPhone/Safari:</p>
+                    <ol className="list-decimal list-inside space-y-1.5 text-gray-700">
                       <li>
                         Open your iPhone <strong>Settings</strong> app
                       </li>
@@ -55,18 +55,18 @@ export function LocationPermissionDialog({ open, onOpenChange, onRetry }: Locati
                   </div>
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground text-center">
+              <p className="text-xs text-gray-500 text-center">
                 You may need to refresh the page after changing settings
               </p>
             </>
           ) : (
             <>
-              <div className="bg-muted p-4 rounded-lg space-y-3">
+              <div className="bg-gray-100 p-4 rounded-lg space-y-3">
                 <div className="flex items-start gap-3">
-                  <Smartphone className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
+                  <Smartphone className="h-5 w-5 text-gray-600 mt-0.5 flex-shrink-0" />
                   <div className="space-y-2 text-sm">
-                    <p className="font-semibold">To enable location:</p>
-                    <ol className="list-decimal list-inside space-y-1.5 text-muted-foreground">
+                    <p className="font-semibold text-gray-900">To enable location:</p>
+                    <ol className="list-decimal list-inside space-y-1.5 text-gray-700">
                       <li>Click the lock or info icon in your browser's address bar</li>
                       <li>Find "Location" permissions</li>
                       <li>Change it to "Allow"</li>
