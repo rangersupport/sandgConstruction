@@ -1,0 +1,111 @@
+"use client"
+
+import { useEffect, useState } from "react"
+
+interface Employee {
+  id: string
+  name: string
+  project_name: string
+  latitude: number
+  longitude: number
+  clock_in: string
+  hours_elapsed: number
+}
+
+interface MapViewProps {
+  employees: Employee[]
+  center: [number, number]
+  onMarkerClick: (id: string) => void
+  selectedEmployee: string | null
+}
+
+export default function MapView({ employees, center, onMarkerClick, selectedEmployee }: MapViewProps) {
+  const [mapUrl, setMapUrl] = useState("")
+
+  useEffect(() => {
+    const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || ""
+
+    if (employees.length === 0) {
+      // Default to Florida if no employees
+      setMapUrl(
+        `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/${center[1]},${center[0]},10,0/800x600@2x?access_token=${mapboxToken}`,
+      )
+      return
+    }
+
+    // Calculate center from all employee locations
+    const centerLat = employees.reduce((sum, emp) => sum + emp.latitude, 0) / employees.length
+    const centerLng = employees.reduce((sum, emp) => sum + emp.longitude, 0) / employees.length
+
+    const markers = employees
+      .map((emp) => `pin-s-${emp.name.charAt(0).toLowerCase()}+22c55e(${emp.longitude},${emp.latitude})`)
+      .join(",")
+
+    const url = `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/${markers}/${centerLng},${centerLat},10,0/800x600@2x?access_token=${mapboxToken}`
+
+    setMapUrl(url)
+  }, [employees, center])
+
+  return (
+    <div className="w-full h-full relative bg-gray-100">
+      {employees.length > 0 ? (
+        <div className="w-full h-full flex flex-col">
+          <div className="flex-1 relative">
+            <img
+              src={mapUrl || "/placeholder.svg"}
+              alt="Employee locations map"
+              className="w-full h-full object-cover"
+            />
+
+            {/* Clickable overlays for each employee */}
+            {employees.map((employee, index) => {
+              // Calculate approximate pixel position (this is simplified)
+              const position = {
+                left: `${20 + index * 15}%`,
+                top: `${30 + (index % 3) * 20}%`,
+              }
+
+              return (
+                <button
+                  key={employee.id}
+                  onClick={() => onMarkerClick(employee.id)}
+                  className={`absolute w-12 h-12 rounded-full bg-green-500 border-4 border-white shadow-lg hover:scale-110 transition-transform flex items-center justify-center text-white font-bold ${
+                    selectedEmployee === employee.id ? "ring-4 ring-blue-500 scale-125" : ""
+                  }`}
+                  style={position}
+                  title={`${employee.name} - ${employee.project_name}`}
+                >
+                  👷
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Legend */}
+          <div className="p-4 bg-white border-t">
+            <div className="flex flex-wrap gap-4 text-sm">
+              {employees.map((employee) => (
+                <div
+                  key={employee.id}
+                  className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded"
+                  onClick={() => onMarkerClick(employee.id)}
+                >
+                  <div className="w-4 h-4 rounded-full bg-green-500 border-2 border-white shadow" />
+                  <span className="font-medium">{employee.name}</span>
+                  <span className="text-gray-500">- {employee.project_name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="w-full h-full flex items-center justify-center text-gray-500">
+          <div className="text-center">
+            <p className="text-lg font-semibold mb-2">No Active Employees</p>
+            <p className="text-sm">Employee locations will appear here when they clock in</p>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

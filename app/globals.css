@@ -3,6 +3,28 @@
 @tailwind utilities;
 
 /* Optional: smooth text and base background */
-html, body {
+html,
+body {
   height: 100%;
+}
+
+/* Leaflet map styles for interactive map */
+.leaflet-container {
+  height: 100%;
+  width: 100%;
+  z-index: 1;
+}
+
+.custom-marker {
+  background: transparent;
+  border: none;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.leaflet-popup-content {
+  margin: 12px;
 }
