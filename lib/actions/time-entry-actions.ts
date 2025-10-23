@@ -171,6 +171,7 @@ export async function clockIn(data: ClockInData): Promise<{ success: boolean; er
       [TIME_ENTRY_FIELDS.PROJECT_ID]: data.projectId,
       [TIME_ENTRY_FIELDS.CLOCK_IN]: clockInTimeFormatted,
       [TIME_ENTRY_FIELDS.STATUS]: "clocked_in",
+      [TIME_ENTRY_FIELDS.NOTES]: `Clocked in via mobile app at ${new Date().toLocaleString()}`,
     }
 
     // Add optional fields if available
