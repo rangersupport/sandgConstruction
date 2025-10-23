@@ -25,6 +25,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Clock, MapPin, Loader2, AlertCircle, CheckCircle2, AlertTriangle } from "lucide-react"
+import { LocationPermissionDialog } from "@/components/employee/location-permission-dialog"
 import type { Project, EmployeeStatus } from "@/lib/types/database"
 
 interface TimeClockProps {
@@ -41,6 +42,7 @@ export function TimeClock({ employeeId, employeeName }: TimeClockProps) {
   const [todayHours, setTodayHours] = useState<number>(0)
   const [elapsedTime, setElapsedTime] = useState<string>("0:00")
   const [showClockOutDialog, setShowClockOutDialog] = useState(false)
+  const [showLocationDialog, setShowLocationDialog] = useState(false)
 
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: "success" | "error" | "warning"; text: string } | null>(null)
@@ -66,6 +68,12 @@ export function TimeClock({ employeeId, employeeName }: TimeClockProps) {
 
     return () => clearInterval(interval)
   }, [status])
+
+  useEffect(() => {
+    if (gpsError && gpsError.code === 1) {
+      setShowLocationDialog(true)
+    }
+  }, [gpsError])
 
   async function loadData() {
     try {
@@ -238,7 +246,14 @@ export function TimeClock({ employeeId, employeeName }: TimeClockProps) {
             <MapPin className={`w-5 h-5 ${coordinates ? "text-green-500" : "text-yellow-500"}`} />
             <div className="flex-1">
               {gpsLoading && <span className="text-muted-foreground">Getting location...</span>}
-              {gpsError && <span className="text-destructive text-sm">{gpsError.message}</span>}
+              {gpsError && (
+                <div className="space-y-1">
+                  <span className="text-destructive text-sm font-medium">{gpsError.message}</span>
+                  {gpsError.code === 1 && (
+                    <p className="text-xs text-muted-foreground">Tap "Help" for instructions to enable location</p>
+                  )}
+                </div>
+              )}
               {coordinates && (
                 <span className="text-sm text-muted-foreground">
                   Location: {coordinates.latitude.toFixed(6)}, {coordinates.longitude.toFixed(6)} (±
@@ -247,9 +262,17 @@ export function TimeClock({ employeeId, employeeName }: TimeClockProps) {
               )}
             </div>
             {gpsError && (
-              <Button variant="outline" size="sm" onClick={requestLocation}>
-                Retry
-              </Button>
+              <div className="flex gap-2">
+                {gpsError.code === 1 ? (
+                  <Button variant="outline" size="sm" onClick={() => setShowLocationDialog(true)}>
+                    Help
+                  </Button>
+                ) : (
+                  <Button variant="outline" size="sm" onClick={requestLocation}>
+                    Retry
+                  </Button>
+                )}
+              </div>
             )}
           </div>
         </CardContent>
@@ -345,6 +368,15 @@ export function TimeClock({ employeeId, employeeName }: TimeClockProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <LocationPermissionDialog
+        open={showLocationDialog}
+        onOpenChange={setShowLocationDialog}
+        onRetry={() => {
+          setShowLocationDialog(false)
+          requestLocation()
+        }}
+      />
     </div>
   )
 }
