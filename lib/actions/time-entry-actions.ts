@@ -218,37 +218,54 @@ export async function clockOut(
   const clockOutTime = new Date().toISOString()
   const clockOutTimeFormatted = formatDateForFileMaker(clockOutTime)
 
+  const { data: supabaseEntry, error: fetchError } = await supabase
+    .from("time_entries")
+    .select("employee_id, clock_in")
+    .eq("id", data.timeEntryId)
+    .single()
+
+  if (fetchError || !supabaseEntry) {
+    console.error("[v0] Error fetching time entry:", fetchError)
+    return {
+      success: false,
+      error: "Could not find time entry",
+    }
+  }
+
   try {
-    // Get the time entry from Supabase to find employee_id
-    const { data: existingEntry } = await supabase
-      .from("time_entries")
-      .select("employee_id")
-      .eq("id", data.timeEntryId)
-      .single()
+    console.log("[v0] Finding FileMaker record for employee:", supabaseEntry.employee_id)
 
-    if (existingEntry) {
-      // Find and update in FileMaker
-      const fileMakerRecords = await fileMaker.findRecords(FILEMAKER_LAYOUTS.TIME_ENTRIES, [
-        { [TIME_ENTRY_FIELDS.EMPLOYEE_ID]: existingEntry.employee_id, [TIME_ENTRY_FIELDS.STATUS]: "clocked_in" },
-      ])
+    const fileMakerRecords = await fileMaker.findRecords(FILEMAKER_LAYOUTS.TIME_ENTRIES, [
+      {
+        [TIME_ENTRY_FIELDS.EMPLOYEE_ID]: supabaseEntry.employee_id,
+        [TIME_ENTRY_FIELDS.STATUS]: "clocked_in",
+      },
+    ])
 
-      if (fileMakerRecords.response.data && fileMakerRecords.response.data.length > 0) {
-        const recordId = fileMakerRecords.response.data[0].recordId
+    console.log("[v0] FileMaker find result:", JSON.stringify(fileMakerRecords, null, 2))
 
-        const updateData = {
-          [TIME_ENTRY_FIELDS.CLOCK_OUT]: clockOutTimeFormatted,
-          [TIME_ENTRY_FIELDS.STATUS]: "clocked_out",
-        }
+    if (fileMakerRecords.response.data && fileMakerRecords.response.data.length > 0) {
+      const recordId = fileMakerRecords.response.data[0].recordId
 
-        console.log("[v0] FileMaker clock-out update data:", JSON.stringify(updateData, null, 2))
-
-        await fileMaker.updateRecord(FILEMAKER_LAYOUTS.TIME_ENTRIES, recordId, updateData)
-
-        console.log("[v0] FileMaker clock out successful")
+      const updateData = {
+        [TIME_ENTRY_FIELDS.CLOCK_OUT]: clockOutTimeFormatted,
+        [TIME_ENTRY_FIELDS.STATUS]: "clocked_out",
       }
+
+      console.log("[v0] Updating FileMaker record", recordId, "with data:", JSON.stringify(updateData, null, 2))
+
+      await fileMaker.updateRecord(FILEMAKER_LAYOUTS.TIME_ENTRIES, recordId, updateData)
+
+      console.log("[v0] FileMaker clock out successful")
+    } else {
+      console.error("[v0] No FileMaker record found for employee:", supabaseEntry.employee_id)
     }
   } catch (error) {
     console.error("[v0] FileMaker clock out failed:", error)
+    if (error instanceof Error) {
+      console.error("[v0] Error message:", error.message)
+      console.error("[v0] Error stack:", error.stack)
+    }
     // Continue to Supabase even if FileMaker fails
   }
 
