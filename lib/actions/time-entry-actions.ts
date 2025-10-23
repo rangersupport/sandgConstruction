@@ -153,8 +153,6 @@ export async function clockIn(data: ClockInData): Promise<{ success: boolean; er
   const employee = await getEmployeeById(data.employeeId)
   const { data: project } = await supabase.from("projects").select("name").eq("id", data.projectId).single()
 
-  const locationDescription = `Lat: ${data.latitude.toFixed(6)}, Lng: ${data.longitude.toFixed(6)} (±${data.accuracy}m)`
-
   const fileMakerData = {
     [TIME_ENTRY_FIELDS.EMPLOYEE_ID]: data.employeeId,
     [TIME_ENTRY_FIELDS.EMPLOYEE_NAME]: employee?.name || "Unknown Employee",
@@ -162,18 +160,10 @@ export async function clockIn(data: ClockInData): Promise<{ success: boolean; er
     [TIME_ENTRY_FIELDS.PROJECT_NAME]: project?.name || "Unknown Project",
     [TIME_ENTRY_FIELDS.CLOCK_IN]: clockInTimeFormatted,
     [TIME_ENTRY_FIELDS.STATUS]: "clocked_in",
-    [TIME_ENTRY_FIELDS.NOTES]: `Clocked in via mobile app at ${new Date().toLocaleString()}`,
-    [TIME_ENTRY_FIELDS.CLOCK_IN_LOCATION]: locationDescription, // Added location text field
+    [TIME_ENTRY_FIELDS.NOTES]: "Test entry from API", // Using exact same note as working test
   }
 
-  if (data.latitude) {
-    fileMakerData[TIME_ENTRY_FIELDS.CLOCK_IN_LAT] = data.latitude
-  }
-  if (data.longitude) {
-    fileMakerData[TIME_ENTRY_FIELDS.CLOCK_IN_LNG] = data.longitude
-  }
-
-  console.log("[v0] NUCLEAR FIX - FileMaker data structure (matching test):", JSON.stringify(fileMakerData, null, 2))
+  console.log("[v0] FileMaker data (matching working test exactly):", JSON.stringify(fileMakerData, null, 2))
 
   try {
     // Write to FileMaker first (master data source)

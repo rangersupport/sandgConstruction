@@ -44,7 +44,6 @@ export function TimeClock({ employeeId, employeeName }: TimeClockProps) {
 
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: "success" | "error" | "warning"; text: string } | null>(null)
-  const [debugData, setDebugData] = useState<any>(null)
 
   useEffect(() => {
     loadData()
@@ -168,60 +167,6 @@ export function TimeClock({ employeeId, employeeName }: TimeClockProps) {
     setLoading(false)
   }
 
-  async function handleDebugClockIn() {
-    if (!selectedProjectId) {
-      setMessage({ type: "error", text: "Please select a project" })
-      return
-    }
-
-    setLoading(true)
-    setMessage(null)
-    setDebugData(null) // Clear previous debug data
-
-    try {
-      const response = await fetch("/api/debug-clock-in", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          employeeId,
-          projectId: selectedProjectId,
-          location: coordinates
-            ? {
-                latitude: coordinates.latitude,
-                longitude: coordinates.longitude,
-                accuracy: coordinates.accuracy,
-              }
-            : null,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error(`API returned ${response.status}: ${response.statusText}`)
-      }
-
-      const data = await response.json()
-
-      if (!data || !data.comparison) {
-        throw new Error("Invalid response structure from debug API")
-      }
-
-      setDebugData(data.comparison)
-      setMessage({
-        type: "success",
-        text: "Debug data loaded! Check below to see what would be sent to FileMaker.",
-      })
-    } catch (error) {
-      console.error("[v0] Debug error:", error) // Added debug logging
-      setMessage({
-        type: "error",
-        text: `Debug failed: ${error instanceof Error ? error.message : String(error)}`,
-      })
-      setDebugData(null)
-    } finally {
-      setLoading(false) // Ensure loading is always cleared
-    }
-  }
-
   return (
     <div className="w-full max-w-2xl mx-auto p-4 space-y-6">
       <Card>
@@ -333,18 +278,6 @@ export function TimeClock({ employeeId, employeeName }: TimeClockProps) {
             </div>
           )}
 
-          {!status?.is_clocked_in && (
-            <Button
-              className="w-full bg-transparent"
-              variant="outline"
-              onClick={handleDebugClockIn}
-              disabled={loading || !selectedProjectId}
-            >
-              {loading && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}🔍 Debug: Show What Would Be Sent to
-              FileMaker
-            </Button>
-          )}
-
           <Button
             className="w-full h-16 text-lg font-semibold"
             variant={status?.is_clocked_in ? "destructive" : "default"}
@@ -379,46 +312,6 @@ export function TimeClock({ employeeId, employeeName }: TimeClockProps) {
           )}
         </CardContent>
       </Card>
-
-      {debugData && (
-        <Card className="border-blue-500">
-          <CardHeader>
-            <CardTitle className="text-blue-600">🔍 Debug Comparison</CardTitle>
-            <CardDescription>{debugData.analysis.message}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <h3 className="font-semibold mb-2">Test Endpoint (WORKING) sends {debugData.fieldCount.test} fields:</h3>
-              <pre className="bg-muted p-3 rounded text-xs overflow-auto">
-                {JSON.stringify(debugData.testEndpointData, null, 2)}
-              </pre>
-            </div>
-            <div>
-              <h3 className="font-semibold mb-2">
-                Actual Clock-In (FAILING) would send {debugData.fieldCount.actual} fields:
-              </h3>
-              <pre className="bg-muted p-3 rounded text-xs overflow-auto">
-                {JSON.stringify(debugData.actualClockInData, null, 2)}
-              </pre>
-            </div>
-            {debugData.missingInActual.length > 0 && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  <strong>Missing fields:</strong> {debugData.missingInActual.join(", ")}
-                </AlertDescription>
-              </Alert>
-            )}
-            {debugData.extraInActual.length > 0 && (
-              <Alert>
-                <AlertDescription>
-                  <strong>Extra fields:</strong> {debugData.extraInActual.join(", ")}
-                </AlertDescription>
-              </Alert>
-            )}
-          </CardContent>
-        </Card>
-      )}
 
       <AlertDialog open={showClockOutDialog} onOpenChange={setShowClockOutDialog}>
         <AlertDialogContent>
