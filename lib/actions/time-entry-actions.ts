@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache"
 import type { TimeEntry, EmployeeStatus } from "@/lib/types/database"
 import { FILEMAKER_LAYOUTS, TIME_ENTRY_FIELDS } from "@/lib/filemaker/config"
 import { formatDateForFileMaker } from "@/lib/filemaker/utils"
+import { getEmployeeById } from "@/lib/employees/utils" // Import the getEmployeeById function
 
 interface ClockInData {
   employeeId: string
@@ -149,10 +150,11 @@ export async function clockIn(data: ClockInData): Promise<{ success: boolean; er
   const clockInTime = new Date().toISOString()
   const clockInTimeFormatted = formatDateForFileMaker(clockInTime)
 
-  try {
-    const { data: employee } = await supabase.from("employees").select("name").eq("id", data.employeeId).single()
+  const employee = await getEmployeeById(data.employeeId) // Declare the employee variable
+  let project = null
 
-    const { data: project } = await supabase.from("projects").select("name").eq("id", data.projectId).single()
+  try {
+    project = await supabase.from("projects").select("name").eq("id", data.projectId).single()
 
     console.log("[v0] Attempting to write to FileMaker...")
     console.log("[v0] Layout:", FILEMAKER_LAYOUTS.TIME_ENTRIES)
@@ -168,6 +170,10 @@ export async function clockIn(data: ClockInData): Promise<{ success: boolean; er
       [TIME_ENTRY_FIELDS.PROJECT_ID]: data.projectId,
       [TIME_ENTRY_FIELDS.CLOCK_IN]: clockInTimeFormatted,
       [TIME_ENTRY_FIELDS.STATUS]: "clocked_in",
+      [TIME_ENTRY_FIELDS.CREATOR]: employee?.name || "system",
+      [TIME_ENTRY_FIELDS.MODIFIER]: employee?.name || "system",
+      [TIME_ENTRY_FIELDS.CREATED_AT]: clockInTimeFormatted,
+      [TIME_ENTRY_FIELDS.MODIFIED_AT]: clockInTimeFormatted,
     }
 
     // Add optional fields if available
@@ -211,6 +217,10 @@ export async function clockIn(data: ClockInData): Promise<{ success: boolean; er
       location_verified: verification.verified,
       distance_from_project: verification.distance || 0,
       status: "clocked_in",
+      creator: employee?.name || "system",
+      modifier: employee?.name || "system",
+      created_at: clockInTime,
+      modified_at: clockInTime,
     })
     .select()
     .single()
@@ -262,6 +272,7 @@ export async function clockOut(
           [TIME_ENTRY_FIELDS.CLOCK_OUT_LAT]: data.latitude,
           [TIME_ENTRY_FIELDS.CLOCK_OUT_LNG]: data.longitude,
           [TIME_ENTRY_FIELDS.STATUS]: "clocked_out",
+          [TIME_ENTRY_FIELDS.MODIFIED_AT]: clockOutTime,
         })
 
         console.log("[v0] FileMaker clock out successful")
@@ -280,6 +291,7 @@ export async function clockOut(
       clock_out_lat: data.latitude,
       clock_out_lng: data.longitude,
       status: "clocked_out",
+      modified_at: clockOutTime,
     })
     .eq("id", data.timeEntryId)
     .select()
