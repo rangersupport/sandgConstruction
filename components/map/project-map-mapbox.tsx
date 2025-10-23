@@ -8,14 +8,14 @@ import { MapPin, Users, Clock, Building2 } from "lucide-react"
 interface Worker {
   id: string
   name: string
-  hours: number
+  hours: number | null
 }
 
 interface ProjectLocation {
   project_id: string
   project_name: string
-  latitude: number
-  longitude: number
+  latitude: number | null
+  longitude: number | null
   address: string
   active_workers: number
   workers: Worker[]
@@ -77,7 +77,9 @@ export function ProjectMapMapbox() {
 
     if (!mapboxToken) {
       console.error("[v0] NEXT_PUBLIC_MAPBOX_TOKEN is missing")
-      setError("Map configuration error: Missing API token")
+      setError(
+        "Map configuration error: Missing API token. Please add NEXT_PUBLIC_MAPBOX_TOKEN to your environment variables.",
+      )
       return
     }
 
@@ -93,8 +95,8 @@ export function ProjectMapMapbox() {
     }
 
     try {
-      const centerLat = validProjects.reduce((sum, p) => sum + p.latitude, 0) / validProjects.length
-      const centerLng = validProjects.reduce((sum, p) => sum + p.longitude, 0) / validProjects.length
+      const centerLat = validProjects.reduce((sum, p) => sum + p.latitude!, 0) / validProjects.length
+      const centerLng = validProjects.reduce((sum, p) => sum + p.longitude!, 0) / validProjects.length
 
       console.log("[v0] Creating map centered at:", centerLat, centerLng)
 
@@ -142,16 +144,21 @@ export function ProjectMapMapbox() {
             <h3 style="font-weight: bold; margin-bottom: 4px;">${project.project_name}</h3>
             <p style="font-size: 12px; color: #666; margin-bottom: 8px;">${project.address}</p>
             <div style="font-size: 12px;">
-              ${project.workers.map((w) => `<div style="display: flex; justify-between; margin-bottom: 4px;"><span>${w.name}</span><span style="color: #666;">${w.hours.toFixed(1)}h</span></div>`).join("")}
+              ${project.workers
+                .map(
+                  (w) =>
+                    `<div style="display: flex; justify-between; margin-bottom: 4px;"><span>${w.name}</span><span style="color: #666;">${(w.hours || 0).toFixed(1)}h</span></div>`,
+                )
+                .join("")}
             </div>
           </div>
         `)
 
-        new mapboxgl.Marker(el).setLngLat([project.longitude, project.latitude]).setPopup(popup).addTo(map.current)
+        new mapboxgl.Marker(el).setLngLat([project.longitude!, project.latitude!]).setPopup(popup).addTo(map.current)
       })
 
       const bounds = new mapboxgl.LngLatBounds()
-      validProjects.forEach((p) => bounds.extend([p.longitude, p.latitude]))
+      validProjects.forEach((p) => bounds.extend([p.longitude!, p.latitude!]))
       map.current.fitBounds(bounds, { padding: 50 })
 
       console.log("[v0] Map initialized successfully with", validProjects.length, "markers")
@@ -273,14 +280,14 @@ export function ProjectMapMapbox() {
                         <span className="font-medium">{worker.name}</span>
                         <span className="text-muted-foreground flex items-center gap-1">
                           <Clock className="w-3 h-3" />
-                          {worker.hours.toFixed(1)}h
+                          {(worker.hours || 0).toFixed(1)}h
                         </span>
                       </div>
                     ))}
                   </div>
 
                   <div className="mt-3 pt-3 border-t text-xs text-muted-foreground">
-                    GPS: {project.latitude.toFixed(4)}, {project.longitude.toFixed(4)}
+                    GPS: {(project.latitude || 0).toFixed(4)}, {(project.longitude || 0).toFixed(4)}
                   </div>
                 </CardContent>
               </Card>
