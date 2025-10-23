@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { fileMaker } from "@/lib/filemaker/client"
 import { FILEMAKER_LAYOUTS } from "@/lib/filemaker/config"
+import { formatDateForFileMaker } from "@/lib/filemaker/utils"
 
 export async function GET() {
   try {
@@ -21,17 +22,22 @@ export async function GET() {
     console.log("[v0] Projects fetched:", projectsResult.response?.data?.length || 0)
 
     console.log("[v0] Testing write to T17z_TimeEntries layout...")
+    const now = new Date()
+    const formattedDate = formatDateForFileMaker(now)
+
     const testTimeEntry = {
       employee_id: "STA001",
       employee_name: "John Smith",
       project_id: "PRJ001",
       project_name: "Test Project",
-      clock_in: new Date().toISOString(),
+      clock_in: formattedDate,
       status: "clocked_in",
       notes: "Test entry from API",
     }
 
     console.log("[v0] Test data to write:", testTimeEntry)
+    console.log("[v0] Date format (ISO):", now.toISOString())
+    console.log("[v0] Date format (FileMaker):", formattedDate)
 
     const writeResult = await fileMaker.createRecord(FILEMAKER_LAYOUTS.TIME_ENTRIES, testTimeEntry)
 

@@ -5,6 +5,7 @@ import { fileMaker } from "@/lib/filemaker/client"
 import { revalidatePath } from "next/cache"
 import type { TimeEntry, EmployeeStatus } from "@/lib/types/database"
 import { FILEMAKER_LAYOUTS, TIME_ENTRY_FIELDS } from "@/lib/filemaker/config"
+import { formatDateForFileMaker } from "@/lib/filemaker/utils"
 
 interface ClockInData {
   employeeId: string
@@ -146,19 +147,21 @@ export async function clockIn(data: ClockInData): Promise<{ success: boolean; er
   }
 
   const clockInTime = new Date().toISOString()
+  const clockInTimeFormatted = formatDateForFileMaker(clockInTime)
 
   try {
     console.log("[v0] Attempting to write to FileMaker...")
     console.log("[v0] Layout:", FILEMAKER_LAYOUTS.TIME_ENTRIES)
     console.log("[v0] Employee ID:", data.employeeId)
     console.log("[v0] Project ID:", data.projectId)
-    console.log("[v0] Clock in time:", clockInTime)
+    console.log("[v0] Clock in time (ISO):", clockInTime)
+    console.log("[v0] Clock in time (FileMaker format):", clockInTimeFormatted)
 
     // Write to FileMaker first (master data source)
     const fileMakerResult = await fileMaker.createRecord(FILEMAKER_LAYOUTS.TIME_ENTRIES, {
       [TIME_ENTRY_FIELDS.EMPLOYEE_ID]: data.employeeId,
       [TIME_ENTRY_FIELDS.PROJECT_ID]: data.projectId,
-      [TIME_ENTRY_FIELDS.CLOCK_IN]: clockInTime,
+      [TIME_ENTRY_FIELDS.CLOCK_IN]: clockInTimeFormatted,
       [TIME_ENTRY_FIELDS.CLOCK_IN_LAT]: data.latitude,
       [TIME_ENTRY_FIELDS.CLOCK_IN_LNG]: data.longitude,
       [TIME_ENTRY_FIELDS.STATUS]: "clocked_in",
@@ -213,6 +216,7 @@ export async function clockOut(
   const supabase = await createClient()
 
   const clockOutTime = new Date().toISOString()
+  const clockOutTimeFormatted = formatDateForFileMaker(clockOutTime)
 
   try {
     // Get the time entry from Supabase to find employee_id
@@ -232,7 +236,7 @@ export async function clockOut(
         const recordId = fileMakerRecords.response.data[0].recordId
 
         await fileMaker.updateRecord(FILEMAKER_LAYOUTS.TIME_ENTRIES, recordId, {
-          [TIME_ENTRY_FIELDS.CLOCK_OUT]: clockOutTime,
+          [TIME_ENTRY_FIELDS.CLOCK_OUT]: clockOutTimeFormatted,
           [TIME_ENTRY_FIELDS.CLOCK_OUT_LAT]: data.latitude,
           [TIME_ENTRY_FIELDS.CLOCK_OUT_LNG]: data.longitude,
           [TIME_ENTRY_FIELDS.STATUS]: "clocked_out",
