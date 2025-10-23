@@ -159,8 +159,11 @@ export async function clockIn(data: ClockInData): Promise<{ success: boolean; er
     [TIME_ENTRY_FIELDS.PROJECT_ID]: data.projectId,
     [TIME_ENTRY_FIELDS.PROJECT_NAME]: project?.name || "Unknown Project",
     [TIME_ENTRY_FIELDS.CLOCK_IN]: clockInTimeFormatted,
+    [TIME_ENTRY_FIELDS.CLOCK_IN_LAT]: data.latitude,
+    [TIME_ENTRY_FIELDS.CLOCK_IN_LNG]: data.longitude,
+    [TIME_ENTRY_FIELDS.CLOCK_IN_LOCATION]: `Location: ${data.latitude.toFixed(6)}, ${data.longitude.toFixed(6)} (±${data.accuracy}m)`,
     [TIME_ENTRY_FIELDS.STATUS]: "clocked_in",
-    [TIME_ENTRY_FIELDS.NOTES]: "Test entry from API",
+    [TIME_ENTRY_FIELDS.NOTES]: `Clocked in via web app. ${verification.message || ""}`,
   }
 
   console.log("[v0] Clock-in time formatted:", clockInTimeFormatted)
@@ -249,6 +252,9 @@ export async function clockOut(
 
       const updateData = {
         [TIME_ENTRY_FIELDS.CLOCK_OUT]: clockOutTimeFormatted,
+        [TIME_ENTRY_FIELDS.CLOCK_OUT_LAT]: data.latitude,
+        [TIME_ENTRY_FIELDS.CLOCK_OUT_LNG]: data.longitude,
+        [TIME_ENTRY_FIELDS.CLOCK_OUT_LOCATION]: `Location: ${data.latitude.toFixed(6)}, ${data.longitude.toFixed(6)} (±${data.accuracy}m)`,
         [TIME_ENTRY_FIELDS.STATUS]: "clocked_out",
       }
 
