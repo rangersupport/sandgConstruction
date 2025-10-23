@@ -1,12 +1,11 @@
 "use server"
 
-import { createClient } from "@/lib/supabase/server"
 import { fileMaker } from "@/lib/filemaker/client"
 import { revalidatePath } from "next/cache"
-import type { TimeEntry, EmployeeStatus } from "@/lib/types/database"
-import { FILEMAKER_LAYOUTS } from "@/lib/filemaker/config"
+import type { EmployeeStatus } from "@/lib/types/database"
+import { FILEMAKER_LAYOUTS, TIME_ENTRY_FIELDS, PROJECT_FIELDS } from "@/lib/filemaker/config"
 import { formatDateForFileMaker } from "@/lib/filemaker/utils"
-import { getEmployeeById } from "@/lib/employees/utils" // Import the getEmployeeById function
+import { getEmployeeById } from "@/lib/employees/utils"
 
 interface ClockInData {
   employeeId: string
@@ -23,112 +22,63 @@ interface ClockOutData {
   accuracy: number
 }
 
-async function verifyLocationAtProject(
-  latitude: number,
-  longitude: number,
-  projectId: string,
-): Promise<{ verified: boolean; distance?: number; message?: string }> {
-  const supabase = await createClient()
+async function getProjectById(projectId: string) {
+  try {
+    const result = await fileMaker.findRecords(FILEMAKER_LAYOUTS.PROJECTS, [{ [PROJECT_FIELDS.ID]: projectId }])
 
-  // Get project location
-  const { data: project, error } = await supabase
-    .from("projects")
-    .select("latitude, longitude, geofence_radius")
-    .eq("id", projectId)
-    .single()
-
-  if (error || !project) {
-    return {
-      verified: false,
-      message: "Could not verify project location",
+    if (result.response.data && result.response.data.length > 0) {
+      return {
+        id: result.response.data[0].fieldData[PROJECT_FIELDS.ID],
+        name: result.response.data[0].fieldData[PROJECT_FIELDS.NAME],
+      }
     }
-  }
-
-  if (!project.latitude || !project.longitude) {
-    // If project doesn't have GPS coordinates, allow clock-in
-    return {
-      verified: true,
-      message: "Project location not configured",
-    }
-  }
-
-  // Calculate distance using Haversine formula
-  const R = 6371000 // Earth's radius in meters
-  const lat1 = (latitude * Math.PI) / 180
-  const lat2 = (project.latitude * Math.PI) / 180
-  const deltaLat = ((project.latitude - latitude) * Math.PI) / 180
-  const deltaLng = ((project.longitude - longitude) * Math.PI) / 180
-
-  const a =
-    Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
-    Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLng / 2) * Math.sin(deltaLng / 2)
-
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-  const distance = R * c
-
-  const geofenceRadius = project.geofence_radius || 100
-
-  if (distance <= geofenceRadius) {
-    return {
-      verified: true,
-      distance: Math.round(distance),
-      message: `Location verified (${Math.round(distance)}m from site)`,
-    }
-  } else {
-    return {
-      verified: false,
-      distance: Math.round(distance),
-      message: `You are ${Math.round(distance)}m from the project site. Please move closer (within ${geofenceRadius}m).`,
-    }
+    return null
+  } catch (error) {
+    console.error("[v0] Error fetching project:", error)
+    return null
   }
 }
 
 export async function getEmployeeStatus(employeeId: string): Promise<EmployeeStatus | null> {
-  const supabase = await createClient()
+  try {
+    const result = await fileMaker.findRecords(FILEMAKER_LAYOUTS.TIME_ENTRIES, [
+      {
+        [TIME_ENTRY_FIELDS.EMPLOYEE_ID]: employeeId,
+        [TIME_ENTRY_FIELDS.STATUS]: "clocked_in",
+      },
+    ])
 
-  const { data, error } = await supabase
-    .from("time_entries")
-    .select("id, project_id, clock_in")
-    .eq("employee_id", employeeId)
-    .eq("status", "clocked_in")
-    .is("clock_out", null)
-    .order("clock_in", { ascending: false })
-    .limit(1)
-    .maybeSingle()
-
-  if (error) {
-    console.error("Error fetching employee status:", error)
-    return null
-  }
-
-  if (!data) {
-    return {
-      is_clocked_in: false,
-      time_entry_id: null,
-      project_id: null,
-      project_name: null,
-      clock_in: null,
-      hours_elapsed: null,
+    if (!result.response.data || result.response.data.length === 0) {
+      return {
+        is_clocked_in: false,
+        time_entry_id: null,
+        project_id: null,
+        project_name: null,
+        clock_in: null,
+        hours_elapsed: null,
+      }
     }
-  }
 
-  const { data: project } = await supabase.from("projects").select("name").eq("id", data.project_id).single()
+    const record = result.response.data[0]
+    const clockInStr = record.fieldData[TIME_ENTRY_FIELDS.CLOCK_IN]
+    const clockInDate = new Date(clockInStr)
+    const hoursElapsed = (Date.now() - clockInDate.getTime()) / 3600000
 
-  const hoursElapsed = (Date.now() - new Date(data.clock_in).getTime()) / 3600000
-
-  return {
-    is_clocked_in: true,
-    time_entry_id: data.id,
-    project_id: data.project_id,
-    project_name: project?.name || "Unknown Project",
-    clock_in: data.clock_in,
-    hours_elapsed: hoursElapsed,
+    return {
+      is_clocked_in: true,
+      time_entry_id: record.recordId,
+      project_id: record.fieldData[TIME_ENTRY_FIELDS.PROJECT_ID],
+      project_name: record.fieldData[TIME_ENTRY_FIELDS.PROJECT_NAME],
+      clock_in: clockInDate.toISOString(),
+      hours_elapsed: hoursElapsed,
+    }
+  } catch (error) {
+    console.error("[v0] Error fetching employee status:", error)
+    return null
   }
 }
 
-export async function clockIn(data: ClockInData): Promise<{ success: boolean; error?: string; timeEntry?: TimeEntry }> {
-  const supabase = await createClient()
-
+export async function clockIn(data: ClockInData): Promise<{ success: boolean; error?: string; timeEntry?: any }> {
   const status = await getEmployeeStatus(data.employeeId)
   if (status?.is_clocked_in) {
     const clockInTime = new Date(status.clock_in!).toLocaleString()
@@ -138,30 +88,23 @@ export async function clockIn(data: ClockInData): Promise<{ success: boolean; er
     }
   }
 
-  const verification = await verifyLocationAtProject(data.latitude, data.longitude, data.projectId)
-
-  if (!verification.verified) {
-    return {
-      success: false,
-      error: verification.message || "Location verification failed",
-    }
-  }
-
-  const clockInTime = new Date().toISOString()
+  const clockInTime = new Date()
   const clockInTimeFormatted = formatDateForFileMaker(clockInTime)
 
   const employee = await getEmployeeById(data.employeeId)
-  const { data: project } = await supabase.from("projects").select("name").eq("id", data.projectId).single()
+  const project = await getProjectById(data.projectId)
 
   const fileMakerData = {
-    employee_id: data.employeeId,
-    employee_name: employee?.name || "Unknown Employee",
-    project_id: data.projectId,
-    project_name: project?.name || "Unknown Project",
-    clock_in: clockInTimeFormatted,
-    clock_in_location: `${data.latitude}, ${data.longitude}`,
-    status: "clocked_in",
-    notes: `Clocked in via web app. ${verification.message || ""}`,
+    [TIME_ENTRY_FIELDS.EMPLOYEE_ID]: data.employeeId,
+    [TIME_ENTRY_FIELDS.EMPLOYEE_NAME]: employee?.name || "Unknown Employee",
+    [TIME_ENTRY_FIELDS.PROJECT_ID]: data.projectId,
+    [TIME_ENTRY_FIELDS.PROJECT_NAME]: project?.name || "Unknown Project",
+    [TIME_ENTRY_FIELDS.CLOCK_IN]: clockInTimeFormatted,
+    [TIME_ENTRY_FIELDS.CLOCK_IN_LAT]: data.latitude,
+    [TIME_ENTRY_FIELDS.CLOCK_IN_LNG]: data.longitude,
+    [TIME_ENTRY_FIELDS.CLOCK_IN_LOCATION]: `${data.latitude}, ${data.longitude}`,
+    [TIME_ENTRY_FIELDS.STATUS]: "clocked_in",
+    [TIME_ENTRY_FIELDS.NOTES]: `Clocked in via web app. GPS accuracy: ±${data.accuracy.toFixed(0)}m`,
   }
 
   console.log("[v0] Clock-in FileMaker data:", JSON.stringify(fileMakerData, null, 2))
@@ -169,163 +112,116 @@ export async function clockIn(data: ClockInData): Promise<{ success: boolean; er
   try {
     const fileMakerResult = await fileMaker.createRecord(FILEMAKER_LAYOUTS.TIME_ENTRIES, fileMakerData)
     console.log("[v0] FileMaker clock in successful:", JSON.stringify(fileMakerResult, null, 2))
+
+    revalidatePath("/employee")
+    revalidatePath("/dashboard")
+
+    return {
+      success: true,
+      timeEntry: {
+        id: fileMakerResult.response.recordId,
+        employee_id: data.employeeId,
+        project_id: data.projectId,
+        clock_in: clockInTime.toISOString(),
+      },
+    }
   } catch (error) {
     console.error("[v0] FileMaker clock in failed:", error)
-    if (error instanceof Error) {
-      console.error("[v0] Error message:", error.message)
-    }
-  }
-
-  const { data: timeEntry, error } = await supabase
-    .from("time_entries")
-    .insert({
-      employee_id: data.employeeId,
-      project_id: data.projectId,
-      clock_in: clockInTime,
-      clock_in_lat: data.latitude,
-      clock_in_lng: data.longitude,
-      location_verified: verification.verified,
-      distance_from_project: verification.distance || 0,
-      status: "clocked_in",
-    })
-    .select()
-    .single()
-
-  if (error) {
-    console.error("Error clocking in to Supabase:", error)
     return {
       success: false,
-      error: error.message,
+      error: error instanceof Error ? error.message : "Failed to clock in",
     }
-  }
-
-  revalidatePath("/employee")
-  revalidatePath("/dashboard")
-
-  return {
-    success: true,
-    timeEntry,
   }
 }
 
-export async function clockOut(
-  data: ClockOutData,
-): Promise<{ success: boolean; error?: string; timeEntry?: TimeEntry }> {
-  const supabase = await createClient()
-
-  const clockOutTime = new Date().toISOString()
+export async function clockOut(data: ClockOutData): Promise<{ success: boolean; error?: string; timeEntry?: any }> {
+  const clockOutTime = new Date()
   const clockOutTimeFormatted = formatDateForFileMaker(clockOutTime)
 
-  const { data: supabaseEntry, error: fetchError } = await supabase
-    .from("time_entries")
-    .select("employee_id, clock_in")
-    .eq("id", data.timeEntryId)
-    .single()
-
-  if (fetchError || !supabaseEntry) {
-    console.error("[v0] Error fetching time entry:", fetchError)
-    return {
-      success: false,
-      error: "Could not find time entry",
-    }
-  }
-
   try {
-    console.log("[v0] Finding FileMaker record for employee:", supabaseEntry.employee_id)
+    const updateData = {
+      [TIME_ENTRY_FIELDS.CLOCK_OUT]: clockOutTimeFormatted,
+      [TIME_ENTRY_FIELDS.CLOCK_OUT_LAT]: data.latitude,
+      [TIME_ENTRY_FIELDS.CLOCK_OUT_LNG]: data.longitude,
+      [TIME_ENTRY_FIELDS.CLOCK_OUT_LOCATION]: `${data.latitude}, ${data.longitude}`,
+      [TIME_ENTRY_FIELDS.STATUS]: "clocked_out",
+    }
 
-    const fileMakerRecords = await fileMaker.findRecords(FILEMAKER_LAYOUTS.TIME_ENTRIES, [
-      {
-        employee_id: supabaseEntry.employee_id,
-        status: "clocked_in",
+    console.log("[v0] Updating FileMaker record", data.timeEntryId, "with data:", JSON.stringify(updateData, null, 2))
+
+    const updateResult = await fileMaker.updateRecord(FILEMAKER_LAYOUTS.TIME_ENTRIES, data.timeEntryId, updateData)
+
+    console.log("[v0] FileMaker clock out successful:", JSON.stringify(updateResult, null, 2))
+
+    revalidatePath("/employee")
+    revalidatePath("/dashboard")
+
+    return {
+      success: true,
+      timeEntry: {
+        id: data.timeEntryId,
+        clock_out: clockOutTime.toISOString(),
       },
-    ])
-
-    console.log("[v0] FileMaker find result:", JSON.stringify(fileMakerRecords, null, 2))
-
-    if (fileMakerRecords.response.data && fileMakerRecords.response.data.length > 0) {
-      const recordId = fileMakerRecords.response.data[0].recordId
-
-      const updateData = {
-        clock_out: clockOutTimeFormatted,
-        clock_out_location: `${data.latitude}, ${data.longitude}`,
-        status: "clocked_out",
-      }
-
-      console.log("[v0] Updating FileMaker record", recordId, "with data:", JSON.stringify(updateData, null, 2))
-
-      const updateResult = await fileMaker.updateRecord(FILEMAKER_LAYOUTS.TIME_ENTRIES, recordId, updateData)
-
-      console.log("[v0] FileMaker clock out successful:", JSON.stringify(updateResult, null, 2))
-    } else {
-      console.error("[v0] No FileMaker record found for employee:", supabaseEntry.employee_id)
     }
   } catch (error) {
     console.error("[v0] FileMaker clock out failed:", error)
-    if (error instanceof Error) {
-      console.error("[v0] Error message:", error.message)
-      console.error("[v0] Error stack:", error.stack)
-    }
-  }
-
-  const { data: timeEntry, error } = await supabase
-    .from("time_entries")
-    .update({
-      clock_out: clockOutTime,
-      clock_out_lat: data.latitude,
-      clock_out_lng: data.longitude,
-      status: "clocked_out",
-    })
-    .eq("id", data.timeEntryId)
-    .select()
-    .single()
-
-  if (error) {
-    console.error("Error clocking out in Supabase:", error)
     return {
       success: false,
-      error: error.message,
+      error: error instanceof Error ? error.message : "Failed to clock out",
     }
-  }
-
-  revalidatePath("/employee")
-  revalidatePath("/dashboard")
-
-  return {
-    success: true,
-    timeEntry,
   }
 }
 
 export async function getActiveProjects() {
-  const supabase = await createClient()
+  try {
+    const result = await fileMaker.findRecords(FILEMAKER_LAYOUTS.PROJECTS, [{ [PROJECT_FIELDS.STATUS]: "Active" }])
 
-  const { data, error } = await supabase.from("projects").select("*").eq("status", "active").order("name")
+    if (!result.response.data) {
+      return []
+    }
 
-  if (error) {
-    console.error("Error fetching projects:", error)
+    return result.response.data.map((record: any) => ({
+      id: record.fieldData[PROJECT_FIELDS.ID],
+      name: record.fieldData[PROJECT_FIELDS.NAME],
+      status: record.fieldData[PROJECT_FIELDS.STATUS],
+    }))
+  } catch (error) {
+    console.error("[v0] Error fetching projects:", error)
     return []
   }
-
-  return data
 }
 
 export async function getTodayHours(employeeId: string): Promise<number> {
-  const supabase = await createClient()
+  try {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const todayFormatted = formatDateForFileMaker(today)
 
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+    const result = await fileMaker.findRecords(FILEMAKER_LAYOUTS.TIME_ENTRIES, [
+      {
+        [TIME_ENTRY_FIELDS.EMPLOYEE_ID]: employeeId,
+        [TIME_ENTRY_FIELDS.CLOCK_IN]: `>=${todayFormatted}`,
+      },
+    ])
 
-  const { data, error } = await supabase
-    .from("time_entries")
-    .select("hours_worked")
-    .eq("employee_id", employeeId)
-    .gte("clock_in", today.toISOString())
-    .not("hours_worked", "is", null)
+    if (!result.response.data) {
+      return 0
+    }
 
-  if (error) {
-    console.error("Error fetching today hours:", error)
+    let totalHours = 0
+    for (const record of result.response.data) {
+      const clockIn = new Date(record.fieldData[TIME_ENTRY_FIELDS.CLOCK_IN])
+      const clockOut = record.fieldData[TIME_ENTRY_FIELDS.CLOCK_OUT]
+        ? new Date(record.fieldData[TIME_ENTRY_FIELDS.CLOCK_OUT])
+        : new Date()
+
+      const hours = (clockOut.getTime() - clockIn.getTime()) / 3600000
+      totalHours += hours
+    }
+
+    return totalHours
+  } catch (error) {
+    console.error("[v0] Error fetching today hours:", error)
     return 0
   }
-
-  return data.reduce((sum, entry) => sum + (entry.hours_worked || 0), 0)
 }
