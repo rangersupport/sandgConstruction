@@ -154,7 +154,8 @@ export async function clockIn(data: ClockInData): Promise<{ success: boolean; er
   let project = null
 
   try {
-    project = await supabase.from("projects").select("name").eq("id", data.projectId).single()
+    const { data: projectData } = await supabase.from("projects").select("name").eq("id", data.projectId).single()
+    project = projectData
 
     console.log("[v0] Attempting to write to FileMaker...")
     console.log("[v0] Layout:", FILEMAKER_LAYOUTS.TIME_ENTRIES)
@@ -205,7 +206,6 @@ export async function clockIn(data: ClockInData): Promise<{ success: boolean; er
     // Continue to Supabase even if FileMaker fails (for demo purposes)
   }
 
-  // Write to Supabase (for mapping and real-time updates)
   const { data: timeEntry, error } = await supabase
     .from("time_entries")
     .insert({
@@ -217,10 +217,6 @@ export async function clockIn(data: ClockInData): Promise<{ success: boolean; er
       location_verified: verification.verified,
       distance_from_project: verification.distance || 0,
       status: "clocked_in",
-      creator: employee?.name || "system",
-      modifier: employee?.name || "system",
-      created_at: clockInTime,
-      modified_at: clockInTime,
     })
     .select()
     .single()
@@ -283,7 +279,6 @@ export async function clockOut(
     // Continue to Supabase even if FileMaker fails
   }
 
-  // Update Supabase (for mapping)
   const { data: timeEntry, error } = await supabase
     .from("time_entries")
     .update({
@@ -291,7 +286,6 @@ export async function clockOut(
       clock_out_lat: data.latitude,
       clock_out_lng: data.longitude,
       status: "clocked_out",
-      modified_at: clockOutTime,
     })
     .eq("id", data.timeEntryId)
     .select()
