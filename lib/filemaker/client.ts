@@ -91,22 +91,39 @@ export class FileMakerClient {
 
   // Create record
   async createRecord(layout: string, fieldData: any) {
+    console.log("[v0] FileMaker createRecord called")
+    console.log("[v0] Layout:", layout)
+    console.log("[v0] Field data:", JSON.stringify(fieldData, null, 2))
+
     const token = await this.getToken()
 
-    const response = await fetch(`${this.baseUrl}/fmi/data/v1/databases/${this.database}/layouts/${layout}/records`, {
+    const url = `${this.baseUrl}/fmi/data/v1/databases/${this.database}/layouts/${layout}/records`
+    console.log("[v0] Create record URL:", url)
+
+    const body = JSON.stringify({ fieldData })
+    console.log("[v0] Request body:", body)
+
+    const response = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ fieldData }),
+      body,
     })
 
+    console.log("[v0] Create record response status:", response.status)
+    console.log("[v0] Create record response ok:", response.ok)
+
     if (!response.ok) {
-      throw new Error("Failed to create record")
+      const errorText = await response.text()
+      console.error("[v0] FileMaker create record failed:", errorText)
+      throw new Error(`Failed to create record: ${response.status} - ${errorText}`)
     }
 
-    return response.json()
+    const result = await response.json()
+    console.log("[v0] Create record result:", JSON.stringify(result, null, 2))
+    return result
   }
 
   // Update record

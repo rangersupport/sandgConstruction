@@ -148,6 +148,12 @@ export async function clockIn(data: ClockInData): Promise<{ success: boolean; er
   const clockInTime = new Date().toISOString()
 
   try {
+    console.log("[v0] Attempting to write to FileMaker...")
+    console.log("[v0] Layout:", FILEMAKER_LAYOUTS.TIME_ENTRIES)
+    console.log("[v0] Employee ID:", data.employeeId)
+    console.log("[v0] Project ID:", data.projectId)
+    console.log("[v0] Clock in time:", clockInTime)
+
     // Write to FileMaker first (master data source)
     const fileMakerResult = await fileMaker.createRecord(FILEMAKER_LAYOUTS.TIME_ENTRIES, {
       [TIME_ENTRY_FIELDS.EMPLOYEE_ID]: data.employeeId,
@@ -158,9 +164,13 @@ export async function clockIn(data: ClockInData): Promise<{ success: boolean; er
       [TIME_ENTRY_FIELDS.STATUS]: "clocked_in",
     })
 
-    console.log("[v0] FileMaker clock in successful:", fileMakerResult)
+    console.log("[v0] FileMaker clock in successful:", JSON.stringify(fileMakerResult, null, 2))
   } catch (error) {
     console.error("[v0] FileMaker clock in failed:", error)
+    if (error instanceof Error) {
+      console.error("[v0] Error message:", error.message)
+      console.error("[v0] Error stack:", error.stack)
+    }
     // Continue to Supabase even if FileMaker fails (for demo purposes)
   }
 
