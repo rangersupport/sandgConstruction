@@ -150,22 +150,44 @@ export async function clockIn(data: ClockInData): Promise<{ success: boolean; er
   const clockInTimeFormatted = formatDateForFileMaker(clockInTime)
 
   try {
+    const { data: employee } = await supabase.from("employees").select("name").eq("id", data.employeeId).single()
+
+    const { data: project } = await supabase.from("projects").select("name").eq("id", data.projectId).single()
+
     console.log("[v0] Attempting to write to FileMaker...")
     console.log("[v0] Layout:", FILEMAKER_LAYOUTS.TIME_ENTRIES)
     console.log("[v0] Employee ID:", data.employeeId)
+    console.log("[v0] Employee Name:", employee?.name)
     console.log("[v0] Project ID:", data.projectId)
+    console.log("[v0] Project Name:", project?.name)
     console.log("[v0] Clock in time (ISO):", clockInTime)
     console.log("[v0] Clock in time (FileMaker format):", clockInTimeFormatted)
 
-    // Write to FileMaker first (master data source)
-    const fileMakerResult = await fileMaker.createRecord(FILEMAKER_LAYOUTS.TIME_ENTRIES, {
+    const fileMakerData: Record<string, any> = {
       [TIME_ENTRY_FIELDS.EMPLOYEE_ID]: data.employeeId,
       [TIME_ENTRY_FIELDS.PROJECT_ID]: data.projectId,
       [TIME_ENTRY_FIELDS.CLOCK_IN]: clockInTimeFormatted,
-      [TIME_ENTRY_FIELDS.CLOCK_IN_LAT]: data.latitude,
-      [TIME_ENTRY_FIELDS.CLOCK_IN_LNG]: data.longitude,
       [TIME_ENTRY_FIELDS.STATUS]: "clocked_in",
-    })
+    }
+
+    // Add optional fields if available
+    if (employee?.name) {
+      fileMakerData[TIME_ENTRY_FIELDS.EMPLOYEE_NAME] = employee.name
+    }
+    if (project?.name) {
+      fileMakerData[TIME_ENTRY_FIELDS.PROJECT_NAME] = project.name
+    }
+    if (data.latitude) {
+      fileMakerData[TIME_ENTRY_FIELDS.CLOCK_IN_LAT] = data.latitude
+    }
+    if (data.longitude) {
+      fileMakerData[TIME_ENTRY_FIELDS.CLOCK_IN_LNG] = data.longitude
+    }
+
+    console.log("[v0] FileMaker data being sent:", JSON.stringify(fileMakerData, null, 2))
+
+    // Write to FileMaker first (master data source)
+    const fileMakerResult = await fileMaker.createRecord(FILEMAKER_LAYOUTS.TIME_ENTRIES, fileMakerData)
 
     console.log("[v0] FileMaker clock in successful:", JSON.stringify(fileMakerResult, null, 2))
   } catch (error) {
