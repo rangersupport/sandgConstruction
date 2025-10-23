@@ -159,6 +159,7 @@ export async function clockIn(data: ClockInData): Promise<{ success: boolean; er
     project_id: data.projectId,
     project_name: project?.name || "Unknown Project",
     clock_in: clockInTimeFormatted,
+    clock_in_location: `${data.latitude}, ${data.longitude}`,
     status: "clocked_in",
     notes: `Clocked in via web app. ${verification.message || ""}`,
   }
@@ -246,6 +247,7 @@ export async function clockOut(
 
       const updateData = {
         clock_out: clockOutTimeFormatted,
+        clock_out_location: `${data.latitude}, ${data.longitude}`,
         status: "clocked_out",
       }
 
