@@ -235,13 +235,14 @@ export async function clockOut(
       if (fileMakerRecords.response.data && fileMakerRecords.response.data.length > 0) {
         const recordId = fileMakerRecords.response.data[0].recordId
 
-        await fileMaker.updateRecord(FILEMAKER_LAYOUTS.TIME_ENTRIES, recordId, {
+        const updateData = {
           [TIME_ENTRY_FIELDS.CLOCK_OUT]: clockOutTimeFormatted,
-          [TIME_ENTRY_FIELDS.CLOCK_OUT_LAT]: data.latitude,
-          [TIME_ENTRY_FIELDS.CLOCK_OUT_LNG]: data.longitude,
           [TIME_ENTRY_FIELDS.STATUS]: "clocked_out",
-          [TIME_ENTRY_FIELDS.MODIFIED_AT]: clockOutTime,
-        })
+        }
+
+        console.log("[v0] FileMaker clock-out update data:", JSON.stringify(updateData, null, 2))
+
+        await fileMaker.updateRecord(FILEMAKER_LAYOUTS.TIME_ENTRIES, recordId, updateData)
 
         console.log("[v0] FileMaker clock out successful")
       }
