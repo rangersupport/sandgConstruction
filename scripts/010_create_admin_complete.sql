@@ -1,8 +1,15 @@
 -- Complete admin account creation
 -- This creates both the Supabase Auth user AND the admin_users record
 
+-- First ensure the email column has a unique constraint
+ALTER TABLE admin_users 
+ADD CONSTRAINT admin_users_email_key UNIQUE (email);
+
+-- Delete existing records to avoid conflicts
+DELETE FROM admin_users WHERE email = 'admin@sandgservice.com';
+DELETE FROM auth.users WHERE email = 'admin@sandgservice.com';
+
 -- Step 1: Insert into Supabase Auth (auth.users table)
--- Note: You may need to run this in the Supabase SQL Editor with elevated permissions
 INSERT INTO auth.users (
   instance_id,
   id,
@@ -39,12 +46,9 @@ INSERT INTO auth.users (
   '',
   '',
   ''
-)
-ON CONFLICT (email) DO UPDATE
-SET encrypted_password = crypt('Admin123!', gen_salt('bf')),
-    updated_at = NOW();
+);
 
--- Step 2: Create or update admin_users record
+-- Step 2: Create admin_users record
 INSERT INTO admin_users (email, password_hash, name, role, is_active, created_at, updated_at)
 VALUES (
   'admin@sandgservice.com',
@@ -54,11 +58,7 @@ VALUES (
   true,
   NOW(),
   NOW()
-)
-ON CONFLICT (email) DO UPDATE
-SET password_hash = crypt('Admin123!', gen_salt('bf')),
-    is_active = true,
-    updated_at = NOW();
+);
 
 -- Verify the admin was created
 SELECT email, name, role, is_active FROM admin_users WHERE email = 'admin@sandgservice.com';
