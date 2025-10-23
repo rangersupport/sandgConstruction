@@ -1,8 +1,9 @@
 export function getMapboxToken(): string {
-  const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
+  // Use MAPBOX_ACCESS_TOKEN (server-side only, not NEXT_PUBLIC_)
+  const token = process.env.MAPBOX_ACCESS_TOKEN
 
   if (!token) {
-    throw new Error("NEXT_PUBLIC_MAPBOX_TOKEN is not configured")
+    throw new Error("MAPBOX_ACCESS_TOKEN is not configured. Add it to your environment variables.")
   }
 
   return token
