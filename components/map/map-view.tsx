@@ -23,25 +23,25 @@ export default function MapView({ employees, center, onMarkerClick, selectedEmpl
   const [mapUrl, setMapUrl] = useState("")
 
   useEffect(() => {
-    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""
+    const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || ""
 
     if (employees.length === 0) {
       // Default to Florida if no employees
-      setMapUrl(`https://www.google.com/maps/embed/v1/view?key=${apiKey}&center=${center[0]},${center[1]}&zoom=10`)
+      setMapUrl(
+        `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/${center[1]},${center[0]},10,0/800x600@2x?access_token=${mapboxToken}`,
+      )
       return
     }
-
-    // Create markers parameter for Google Maps
-    const markers = employees
-      .map((emp) => `markers=color:green%7Clabel:${emp.name.charAt(0)}%7C${emp.latitude},${emp.longitude}`)
-      .join("&")
 
     // Calculate center from all employee locations
     const centerLat = employees.reduce((sum, emp) => sum + emp.latitude, 0) / employees.length
     const centerLng = employees.reduce((sum, emp) => sum + emp.longitude, 0) / employees.length
 
-    // Use Google Maps Static API for displaying markers
-    const url = `https://maps.googleapis.com/maps/api/staticmap?center=${centerLat},${centerLng}&zoom=10&size=800x600&${markers}&key=${apiKey}`
+    const markers = employees
+      .map((emp) => `pin-s-${emp.name.charAt(0).toLowerCase()}+22c55e(${emp.longitude},${emp.latitude})`)
+      .join(",")
+
+    const url = `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/${markers}/${centerLng},${centerLat},10,0/800x600@2x?access_token=${mapboxToken}`
 
     setMapUrl(url)
   }, [employees, center])
