@@ -5,12 +5,13 @@ export async function GET() {
   try {
     const supabase = await createClient()
 
-    // Get all active time entries with location data
     const { data: timeEntries, error: entriesError } = await supabase
       .from("time_entries")
-      .select("id, employee_id, project_id, clock_in, clock_in_lat, clock_in_lng")
+      .select("id, employee_id, project_id, clock_in, clock_in_lat, clock_in_lng, clock_in_location")
       .eq("status", "clocked_in")
       .is("clock_out", null)
+      .not("clock_in_lat", "is", null)
+      .not("clock_in_lng", "is", null)
 
     if (entriesError) {
       console.error("[v0] Error fetching time entries:", entriesError)
@@ -21,13 +22,21 @@ export async function GET() {
       return NextResponse.json([])
     }
 
-    // Get unique project IDs
-    const projectIds = [...new Set(timeEntries.map((e) => e.project_id))]
+    const validEntries = timeEntries.filter(
+      (e) => e.clock_in_lat !== null && e.clock_in_lng !== null && e.clock_in_lat !== 0 && e.clock_in_lng !== 0,
+    )
 
-    // Get project details with GPS coordinates
+    if (validEntries.length === 0) {
+      return NextResponse.json([])
+    }
+
+    // Get unique project IDs
+    const projectIds = [...new Set(validEntries.map((e) => e.project_id))]
+
+    // Get project details
     const { data: projects, error: projectsError } = await supabase
       .from("projects")
-      .select("id, name, location, latitude, longitude")
+      .select("id, name, location")
       .in("id", projectIds)
 
     if (projectsError) {
@@ -35,12 +44,10 @@ export async function GET() {
       return NextResponse.json([])
     }
 
-    if (!projects || projects.length === 0) {
-      return NextResponse.json([])
-    }
+    const projectMap = new Map(projects?.map((p) => [p.id, p]) || [])
 
     // Get employee details
-    const employeeIds = [...new Set(timeEntries.map((e) => e.employee_id))]
+    const employeeIds = [...new Set(validEntries.map((e) => e.employee_id))]
     const { data: employees, error: employeesError } = await supabase
       .from("employees")
       .select("id, name")
@@ -52,31 +59,39 @@ export async function GET() {
 
     const employeeMap = new Map(employees?.map((e) => [e.id, e.name]) || [])
 
-    // Group employees by project
-    const projectLocations = projects
-      .map((project) => {
-        const projectEntries = timeEntries.filter((e) => e.project_id === project.id)
+    const projectLocations = validEntries.reduce((acc, entry) => {
+      const project = projectMap.get(entry.project_id)
+      if (!project) return acc
 
-        const workers = projectEntries.map((entry) => {
-          const hoursElapsed = (Date.now() - new Date(entry.clock_in).getTime()) / 3600000
-          return {
-            id: entry.employee_id,
-            name: employeeMap.get(entry.employee_id) || "Unknown",
-            hours: hoursElapsed,
-          }
-        })
+      // Find existing project location or create new one
+      let projectLoc = acc.find((p) => p.project_id === entry.project_id)
 
-        return {
+      if (!projectLoc) {
+        projectLoc = {
           project_id: project.id,
           project_name: project.name,
-          latitude: project.latitude,
-          longitude: project.longitude,
-          address: project.location,
-          active_workers: workers.length,
-          workers,
+          latitude: entry.clock_in_lat,
+          longitude: entry.clock_in_lng,
+          address: entry.clock_in_location || project.location || "Location not available",
+          active_workers: 0,
+          workers: [],
         }
+        acc.push(projectLoc)
+      }
+
+      // Add worker to this project
+      const hoursElapsed = (Date.now() - new Date(entry.clock_in).getTime()) / 3600000
+      projectLoc.workers.push({
+        id: entry.employee_id,
+        name: employeeMap.get(entry.employee_id) || "Unknown",
+        hours: hoursElapsed,
+        latitude: entry.clock_in_lat,
+        longitude: entry.clock_in_lng,
       })
-      .filter((p) => p.active_workers > 0)
+      projectLoc.active_workers = projectLoc.workers.length
+
+      return acc
+    }, [] as any[])
 
     return NextResponse.json(projectLocations)
   } catch (error) {
