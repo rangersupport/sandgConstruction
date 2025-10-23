@@ -86,7 +86,9 @@ export function ProjectMapMapbox() {
     mapboxgl.accessToken = mapboxToken
     console.log("[v0] Mapbox token set, initializing map...")
 
-    const validProjects = projects.filter((p) => p.latitude != null && p.longitude != null)
+    const validProjects = projects.filter(
+      (p) => p.latitude != null && p.longitude != null && p.latitude !== 0 && p.longitude !== 0,
+    )
 
     if (validProjects.length === 0) {
       console.log("[v0] No projects with valid coordinates")
@@ -190,6 +192,12 @@ export function ProjectMapMapbox() {
   }
 
   const totalWorkers = projects.reduce((sum, p) => sum + p.active_workers, 0)
+  const validProjects = projects.filter(
+    (p) => p.latitude != null && p.longitude != null && p.latitude !== 0 && p.longitude !== 0,
+  )
+  const invalidProjects = projects.filter(
+    (p) => p.latitude == null || p.longitude == null || p.latitude === 0 || p.longitude === 0,
+  )
 
   return (
     <div className="h-full w-full flex flex-col lg:flex-row gap-4 p-4">
@@ -213,7 +221,7 @@ export function ProjectMapMapbox() {
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Building2 className="w-5 h-5" />
-                Active Projects: {projects.length}
+                Active Projects: {validProjects.length}
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
@@ -243,11 +251,23 @@ export function ProjectMapMapbox() {
 
         {loading ? (
           <div className="text-center py-8 text-muted-foreground">Loading...</div>
-        ) : projects.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">No active projects</div>
+        ) : validProjects.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            {invalidProjects.length > 0 ? (
+              <div className="space-y-2">
+                <p>No projects with valid location data</p>
+                <p className="text-xs">
+                  {invalidProjects.length} project(s) have invalid GPS coordinates. Employees need to enable location
+                  services when clocking in.
+                </p>
+              </div>
+            ) : (
+              "No active projects"
+            )}
+          </div>
         ) : (
           <div className="space-y-3">
-            {projects.map((project) => (
+            {validProjects.map((project) => (
               <Card
                 key={project.project_id}
                 className={`hover:shadow-md transition-all cursor-pointer ${
@@ -287,11 +307,23 @@ export function ProjectMapMapbox() {
                   </div>
 
                   <div className="mt-3 pt-3 border-t text-xs text-muted-foreground">
-                    GPS: {(project.latitude || 0).toFixed(4)}, {(project.longitude || 0).toFixed(4)}
+                    GPS: {project.latitude!.toFixed(4)}, {project.longitude!.toFixed(4)}
                   </div>
                 </CardContent>
               </Card>
             ))}
+
+            {invalidProjects.length > 0 && (
+              <Card className="border-yellow-500/50 bg-yellow-50">
+                <CardContent className="p-4">
+                  <p className="text-sm font-semibold text-yellow-800 mb-2">⚠️ Location Data Missing</p>
+                  <p className="text-xs text-yellow-700">
+                    {invalidProjects.length} project(s) have workers without valid GPS coordinates. Make sure employees
+                    enable location services when clocking in.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
           </div>
         )}
       </div>
