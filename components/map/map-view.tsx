@@ -23,11 +23,11 @@ export default function MapView({ employees, center, onMarkerClick, selectedEmpl
   const [mapUrl, setMapUrl] = useState("")
 
   useEffect(() => {
+    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""
+
     if (employees.length === 0) {
       // Default to Florida if no employees
-      setMapUrl(
-        `https://www.google.com/maps/embed/v1/view?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&center=${center[0]},${center[1]}&zoom=10`,
-      )
+      setMapUrl(`https://www.google.com/maps/embed/v1/view?key=${apiKey}&center=${center[0]},${center[1]}&zoom=10`)
       return
     }
 
@@ -41,7 +41,7 @@ export default function MapView({ employees, center, onMarkerClick, selectedEmpl
     const centerLng = employees.reduce((sum, emp) => sum + emp.longitude, 0) / employees.length
 
     // Use Google Maps Static API for displaying markers
-    const url = `https://maps.googleapis.com/maps/api/staticmap?center=${centerLat},${centerLng}&zoom=10&size=800x600&${markers}&key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8`
+    const url = `https://maps.googleapis.com/maps/api/staticmap?center=${centerLat},${centerLng}&zoom=10&size=800x600&${markers}&key=${apiKey}`
 
     setMapUrl(url)
   }, [employees, center])
