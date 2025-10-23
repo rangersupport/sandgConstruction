@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server"
 import { fileMaker } from "@/lib/filemaker/client"
 import { revalidatePath } from "next/cache"
 import type { TimeEntry, EmployeeStatus } from "@/lib/types/database"
-import { FILEMAKER_LAYOUTS, TIME_ENTRY_FIELDS } from "@/lib/filemaker/config"
+import { FILEMAKER_LAYOUTS } from "@/lib/filemaker/config"
 import { formatDateForFileMaker } from "@/lib/filemaker/utils"
 import { getEmployeeById } from "@/lib/employees/utils" // Import the getEmployeeById function
 
@@ -154,20 +154,16 @@ export async function clockIn(data: ClockInData): Promise<{ success: boolean; er
   const { data: project } = await supabase.from("projects").select("name").eq("id", data.projectId).single()
 
   const fileMakerData = {
-    [TIME_ENTRY_FIELDS.EMPLOYEE_ID]: data.employeeId,
-    [TIME_ENTRY_FIELDS.EMPLOYEE_NAME]: employee?.name || "Unknown Employee",
-    [TIME_ENTRY_FIELDS.PROJECT_ID]: data.projectId,
-    [TIME_ENTRY_FIELDS.PROJECT_NAME]: project?.name || "Unknown Project",
-    [TIME_ENTRY_FIELDS.CLOCK_IN]: clockInTimeFormatted,
-    [TIME_ENTRY_FIELDS.CLOCK_IN_LAT]: data.latitude,
-    [TIME_ENTRY_FIELDS.CLOCK_IN_LNG]: data.longitude,
-    [TIME_ENTRY_FIELDS.CLOCK_IN_LOCATION]: `${data.latitude}, ${data.longitude}`,
-    [TIME_ENTRY_FIELDS.STATUS]: "clocked_in",
-    [TIME_ENTRY_FIELDS.NOTES]: `Clocked in via web app. ${verification.message || ""}`,
+    employee_id: data.employeeId,
+    employee_name: employee?.name || "Unknown Employee",
+    project_id: data.projectId,
+    project_name: project?.name || "Unknown Project",
+    clock_in: clockInTimeFormatted,
+    status: "clocked_in",
+    notes: `Clocked in via web app. ${verification.message || ""}`,
   }
 
-  console.log("[v0] Clock-in time formatted:", clockInTimeFormatted)
-  console.log("[v0] FileMaker data:", JSON.stringify(fileMakerData, null, 2))
+  console.log("[v0] Clock-in FileMaker data:", JSON.stringify(fileMakerData, null, 2))
 
   try {
     const fileMakerResult = await fileMaker.createRecord(FILEMAKER_LAYOUTS.TIME_ENTRIES, fileMakerData)
@@ -219,8 +215,6 @@ export async function clockOut(
   const clockOutTime = new Date().toISOString()
   const clockOutTimeFormatted = formatDateForFileMaker(clockOutTime)
 
-  console.log("[v0] Clock-out time formatted:", clockOutTimeFormatted)
-
   const { data: supabaseEntry, error: fetchError } = await supabase
     .from("time_entries")
     .select("employee_id, clock_in")
@@ -240,8 +234,8 @@ export async function clockOut(
 
     const fileMakerRecords = await fileMaker.findRecords(FILEMAKER_LAYOUTS.TIME_ENTRIES, [
       {
-        [TIME_ENTRY_FIELDS.EMPLOYEE_ID]: supabaseEntry.employee_id,
-        [TIME_ENTRY_FIELDS.STATUS]: "clocked_in",
+        employee_id: supabaseEntry.employee_id,
+        status: "clocked_in",
       },
     ])
 
@@ -251,11 +245,8 @@ export async function clockOut(
       const recordId = fileMakerRecords.response.data[0].recordId
 
       const updateData = {
-        [TIME_ENTRY_FIELDS.CLOCK_OUT]: clockOutTimeFormatted,
-        [TIME_ENTRY_FIELDS.CLOCK_OUT_LAT]: data.latitude,
-        [TIME_ENTRY_FIELDS.CLOCK_OUT_LNG]: data.longitude,
-        [TIME_ENTRY_FIELDS.CLOCK_OUT_LOCATION]: `${data.latitude}, ${data.longitude}`,
-        [TIME_ENTRY_FIELDS.STATUS]: "clocked_out",
+        clock_out: clockOutTimeFormatted,
+        status: "clocked_out",
       }
 
       console.log("[v0] Updating FileMaker record", recordId, "with data:", JSON.stringify(updateData, null, 2))
