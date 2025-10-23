@@ -150,49 +150,31 @@ export async function clockIn(data: ClockInData): Promise<{ success: boolean; er
   const clockInTime = new Date().toISOString()
   const clockInTimeFormatted = formatDateForFileMaker(clockInTime)
 
-  const employee = await getEmployeeById(data.employeeId) // Declare the employee variable
-  let project = null
+  const employee = await getEmployeeById(data.employeeId)
+  const { data: project } = await supabase.from("projects").select("name").eq("id", data.projectId).single()
+
+  const fileMakerData = {
+    [TIME_ENTRY_FIELDS.EMPLOYEE_ID]: data.employeeId,
+    [TIME_ENTRY_FIELDS.EMPLOYEE_NAME]: employee?.name || "Unknown Employee",
+    [TIME_ENTRY_FIELDS.PROJECT_ID]: data.projectId,
+    [TIME_ENTRY_FIELDS.PROJECT_NAME]: project?.name || "Unknown Project",
+    [TIME_ENTRY_FIELDS.CLOCK_IN]: clockInTimeFormatted,
+    [TIME_ENTRY_FIELDS.STATUS]: "clocked_in",
+    [TIME_ENTRY_FIELDS.NOTES]: `Clocked in via mobile app at ${new Date().toLocaleString()}`,
+  }
+
+  if (data.latitude) {
+    fileMakerData[TIME_ENTRY_FIELDS.CLOCK_IN_LAT] = data.latitude
+  }
+  if (data.longitude) {
+    fileMakerData[TIME_ENTRY_FIELDS.CLOCK_IN_LNG] = data.longitude
+  }
+
+  console.log("[v0] NUCLEAR FIX - FileMaker data structure (matching test):", JSON.stringify(fileMakerData, null, 2))
 
   try {
-    const { data: projectData } = await supabase.from("projects").select("name").eq("id", data.projectId).single()
-    project = projectData
-
-    console.log("[v0] Attempting to write to FileMaker...")
-    console.log("[v0] Layout:", FILEMAKER_LAYOUTS.TIME_ENTRIES)
-    console.log("[v0] Employee ID:", data.employeeId)
-    console.log("[v0] Employee Name:", employee?.name)
-    console.log("[v0] Project ID:", data.projectId)
-    console.log("[v0] Project Name:", project?.name)
-    console.log("[v0] Clock in time (ISO):", clockInTime)
-    console.log("[v0] Clock in time (FileMaker format):", clockInTimeFormatted)
-
-    const fileMakerData: Record<string, any> = {
-      [TIME_ENTRY_FIELDS.EMPLOYEE_ID]: data.employeeId,
-      [TIME_ENTRY_FIELDS.PROJECT_ID]: data.projectId,
-      [TIME_ENTRY_FIELDS.CLOCK_IN]: clockInTimeFormatted,
-      [TIME_ENTRY_FIELDS.STATUS]: "clocked_in",
-      [TIME_ENTRY_FIELDS.NOTES]: `Clocked in via mobile app at ${new Date().toLocaleString()}`,
-    }
-
-    // Add optional fields if available
-    if (employee?.name) {
-      fileMakerData[TIME_ENTRY_FIELDS.EMPLOYEE_NAME] = employee.name
-    }
-    if (project?.name) {
-      fileMakerData[TIME_ENTRY_FIELDS.PROJECT_NAME] = project.name
-    }
-    if (data.latitude) {
-      fileMakerData[TIME_ENTRY_FIELDS.CLOCK_IN_LAT] = data.latitude
-    }
-    if (data.longitude) {
-      fileMakerData[TIME_ENTRY_FIELDS.CLOCK_IN_LNG] = data.longitude
-    }
-
-    console.log("[v0] FileMaker data being sent:", JSON.stringify(fileMakerData, null, 2))
-
     // Write to FileMaker first (master data source)
     const fileMakerResult = await fileMaker.createRecord(FILEMAKER_LAYOUTS.TIME_ENTRIES, fileMakerData)
-
     console.log("[v0] FileMaker clock in successful:", JSON.stringify(fileMakerResult, null, 2))
   } catch (error) {
     console.error("[v0] FileMaker clock in failed:", error)
