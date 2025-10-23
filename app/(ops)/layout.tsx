@@ -1,5 +1,9 @@
 import type { ReactNode } from "react"
 
-export default function OpsLayout({ children }: { children: ReactNode }) {
+export default function OpsLayout({
+  children,
+}: {
+  children: ReactNode
+}) {
   return <>{children}</>
 }
