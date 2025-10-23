@@ -22,15 +22,28 @@ interface MapViewProps {
 export default function MapView({ employees, center, onMarkerClick, selectedEmployee }: MapViewProps) {
   const [mapUrl, setMapUrl] = useState("")
   const [mapboxToken, setMapboxToken] = useState<string>("")
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     async function fetchToken() {
       try {
+        setIsLoading(true)
         const response = await fetch("/api/mapbox-token")
+        if (!response.ok) {
+          throw new Error("Failed to fetch Mapbox token")
+        }
         const data = await response.json()
+        if (data.error) {
+          throw new Error(data.error)
+        }
         setMapboxToken(data.token)
+        setError(null)
       } catch (error) {
         console.error("Failed to fetch Mapbox token:", error)
+        setError("Map unavailable - Mapbox token not configured")
+      } finally {
+        setIsLoading(false)
       }
     }
     fetchToken()
@@ -57,6 +70,31 @@ export default function MapView({ employees, center, onMarkerClick, selectedEmpl
 
     setMapUrl(url)
   }, [employees, center, mapboxToken])
+
+  if (error) {
+    return (
+      <div className="w-full h-full relative bg-gray-100">
+        <div className="w-full h-full flex items-center justify-center text-gray-500">
+          <div className="text-center">
+            <p className="text-lg font-semibold mb-2">Map Unavailable</p>
+            <p className="text-sm">{error}</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (isLoading) {
+    return (
+      <div className="w-full h-full relative bg-gray-100">
+        <div className="w-full h-full flex items-center justify-center text-gray-500">
+          <div className="text-center">
+            <p className="text-lg font-semibold mb-2">Loading Map...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="w-full h-full relative bg-gray-100">
