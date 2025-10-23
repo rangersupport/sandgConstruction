@@ -160,3 +160,31 @@ export async function getLocationComplianceStats(startDate?: string, endDate?: s
       reports.length > 0 ? reports.reduce((sum, r) => sum + r.distance_from_project, 0) / reports.length : 0,
   }
 }
+
+export async function adminClockOut(timeEntryId: string): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient()
+
+  const clockOutTime = new Date().toISOString()
+
+  const { data: timeEntry, error } = await supabase
+    .from("time_entries")
+    .update({
+      clock_out: clockOutTime,
+      status: "clocked_out",
+    })
+    .eq("id", timeEntryId)
+    .select()
+    .single()
+
+  if (error) {
+    console.error("[v0] Error clocking out employee:", error)
+    return {
+      success: false,
+      error: error.message,
+    }
+  }
+
+  return {
+    success: true,
+  }
+}
