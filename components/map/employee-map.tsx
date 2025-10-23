@@ -12,8 +12,8 @@ interface ActiveEmployee {
   id: string
   name: string
   project_name: string
-  latitude: number
-  longitude: number
+  latitude: number | null
+  longitude: number | null
   clock_in: string
   hours_elapsed: number
 }
@@ -42,20 +42,24 @@ export function EmployeeMap() {
   }
 
   const centerLat =
-    activeEmployees.length > 0
-      ? activeEmployees.reduce((sum, emp) => sum + emp.latitude, 0) / activeEmployees.length
+    activeEmployees.length > 0 && activeEmployees.some((emp) => emp.latitude != null && emp.longitude != null)
+      ? activeEmployees.filter((emp) => emp.latitude != null).reduce((sum, emp) => sum + emp.latitude, 0) /
+        activeEmployees.filter((emp) => emp.latitude != null).length
       : 26.7153
 
   const centerLng =
-    activeEmployees.length > 0
-      ? activeEmployees.reduce((sum, emp) => sum + emp.longitude, 0) / activeEmployees.length
+    activeEmployees.length > 0 && activeEmployees.some((emp) => emp.latitude != null && emp.longitude != null)
+      ? activeEmployees.filter((emp) => emp.longitude != null).reduce((sum, emp) => sum + emp.longitude, 0) /
+        activeEmployees.filter((emp) => emp.longitude != null).length
       : -80.0534
+
+  const validEmployees = activeEmployees.filter((emp) => emp.latitude != null && emp.longitude != null)
 
   return (
     <div className="h-full w-full flex flex-col lg:flex-row">
       <div className="flex-1 relative">
         <MapView
-          employees={activeEmployees}
+          employees={validEmployees}
           center={[centerLat, centerLng]}
           onMarkerClick={(id) => setSelectedEmployee(id)}
           selectedEmployee={selectedEmployee}
@@ -67,7 +71,7 @@ export function EmployeeMap() {
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Users className="w-5 h-5" />
-                Active Employees: {activeEmployees.length}
+                Active Employees: {validEmployees.length}
               </CardTitle>
             </CardHeader>
           </Card>
@@ -84,11 +88,11 @@ export function EmployeeMap() {
 
           {loading ? (
             <div className="text-center py-8 text-muted-foreground">Loading...</div>
-          ) : activeEmployees.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">No active employees</div>
+          ) : validEmployees.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">No active employees with location data</div>
           ) : (
             <div className="space-y-3">
-              {activeEmployees.map((employee) => (
+              {validEmployees.map((employee) => (
                 <Card
                   key={employee.id}
                   className={`hover:shadow-md transition-shadow cursor-pointer ${
@@ -115,7 +119,7 @@ export function EmployeeMap() {
                       </div>
                       <div className="flex items-center gap-1">
                         <MapPin className="w-4 h-4" />
-                        {employee.latitude.toFixed(4)}, {employee.longitude.toFixed(4)}
+                        {employee.latitude?.toFixed(4)}, {employee.longitude?.toFixed(4)}
                       </div>
                     </div>
 

@@ -68,9 +68,16 @@ export function ProjectMapMapbox() {
 
     mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || ""
 
-    // Calculate center from projects
-    const centerLat = projects.reduce((sum, p) => sum + p.latitude, 0) / projects.length
-    const centerLng = projects.reduce((sum, p) => sum + p.longitude, 0) / projects.length
+    const validProjects = projects.filter((p) => p.latitude != null && p.longitude != null)
+
+    if (validProjects.length === 0) {
+      console.log("[v0] No projects with valid coordinates")
+      return
+    }
+
+    // Calculate center from valid projects
+    const centerLat = validProjects.reduce((sum, p) => sum + p.latitude, 0) / validProjects.length
+    const centerLng = validProjects.reduce((sum, p) => sum + p.longitude, 0) / validProjects.length
 
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
@@ -82,8 +89,8 @@ export function ProjectMapMapbox() {
     // Add navigation controls
     map.current.addControl(new mapboxgl.NavigationControl(), "top-right")
 
-    // Add markers for each project
-    projects.forEach((project) => {
+    // Add markers for each valid project
+    validProjects.forEach((project) => {
       // Create custom marker element
       const el = document.createElement("div")
       el.className = "project-marker"
@@ -131,7 +138,7 @@ export function ProjectMapMapbox() {
 
     // Fit bounds to show all markers
     const bounds = new mapboxgl.LngLatBounds()
-    projects.forEach((p) => bounds.extend([p.longitude, p.latitude]))
+    validProjects.forEach((p) => bounds.extend([p.longitude, p.latitude]))
     map.current.fitBounds(bounds, { padding: 50 })
   }, [mapboxLoaded, projects])
 
