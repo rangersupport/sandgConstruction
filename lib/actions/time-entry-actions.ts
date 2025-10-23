@@ -160,22 +160,20 @@ export async function clockIn(data: ClockInData): Promise<{ success: boolean; er
     [TIME_ENTRY_FIELDS.PROJECT_NAME]: project?.name || "Unknown Project",
     [TIME_ENTRY_FIELDS.CLOCK_IN]: clockInTimeFormatted,
     [TIME_ENTRY_FIELDS.STATUS]: "clocked_in",
-    [TIME_ENTRY_FIELDS.NOTES]: "Test entry from API", // Using exact same note as working test
+    [TIME_ENTRY_FIELDS.NOTES]: "Test entry from API",
   }
 
-  console.log("[v0] FileMaker data (matching working test exactly):", JSON.stringify(fileMakerData, null, 2))
+  console.log("[v0] Clock-in time formatted:", clockInTimeFormatted)
+  console.log("[v0] FileMaker data:", JSON.stringify(fileMakerData, null, 2))
 
   try {
-    // Write to FileMaker first (master data source)
     const fileMakerResult = await fileMaker.createRecord(FILEMAKER_LAYOUTS.TIME_ENTRIES, fileMakerData)
     console.log("[v0] FileMaker clock in successful:", JSON.stringify(fileMakerResult, null, 2))
   } catch (error) {
     console.error("[v0] FileMaker clock in failed:", error)
     if (error instanceof Error) {
       console.error("[v0] Error message:", error.message)
-      console.error("[v0] Error stack:", error.stack)
     }
-    // Continue to Supabase even if FileMaker fails (for demo purposes)
   }
 
   const { data: timeEntry, error } = await supabase
@@ -218,6 +216,8 @@ export async function clockOut(
   const clockOutTime = new Date().toISOString()
   const clockOutTimeFormatted = formatDateForFileMaker(clockOutTime)
 
+  console.log("[v0] Clock-out time formatted:", clockOutTimeFormatted)
+
   const { data: supabaseEntry, error: fetchError } = await supabase
     .from("time_entries")
     .select("employee_id, clock_in")
@@ -254,9 +254,9 @@ export async function clockOut(
 
       console.log("[v0] Updating FileMaker record", recordId, "with data:", JSON.stringify(updateData, null, 2))
 
-      await fileMaker.updateRecord(FILEMAKER_LAYOUTS.TIME_ENTRIES, recordId, updateData)
+      const updateResult = await fileMaker.updateRecord(FILEMAKER_LAYOUTS.TIME_ENTRIES, recordId, updateData)
 
-      console.log("[v0] FileMaker clock out successful")
+      console.log("[v0] FileMaker clock out successful:", JSON.stringify(updateResult, null, 2))
     } else {
       console.error("[v0] No FileMaker record found for employee:", supabaseEntry.employee_id)
     }
@@ -266,7 +266,6 @@ export async function clockOut(
       console.error("[v0] Error message:", error.message)
       console.error("[v0] Error stack:", error.stack)
     }
-    // Continue to Supabase even if FileMaker fails
   }
 
   const { data: timeEntry, error } = await supabase

@@ -1,57 +1,29 @@
 import { NextResponse } from "next/server"
+import { createClient } from "@/lib/supabase/server"
 
 export async function GET() {
   try {
-    const mockActiveEmployees = [
-      {
-        id: "1",
-        name: "John Doe",
-        project_name: "Residential Construction - Palm Beach",
-        latitude: 26.7153,
-        longitude: -80.0534,
-        clock_in: new Date(Date.now() - 2.5 * 3600000).toISOString(),
-        hours_elapsed: 2.5,
-      },
-      {
-        id: "2",
-        name: "Jane Smith",
-        project_name: "Commercial Renovation - Miami",
-        latitude: 25.7617,
-        longitude: -80.1918,
-        clock_in: new Date(Date.now() - 4.2 * 3600000).toISOString(),
-        hours_elapsed: 4.2,
-      },
-      {
-        id: "3",
-        name: "Maria Garcia",
-        project_name: "Office Building - Fort Lauderdale",
-        latitude: 26.1224,
-        longitude: -80.1373,
-        clock_in: new Date(Date.now() - 1.8 * 3600000).toISOString(),
-        hours_elapsed: 1.8,
-      },
-    ]
-
-    return NextResponse.json(mockActiveEmployees)
-
-    /* Production code - uncomment when deploying:
     const supabase = await createClient()
 
     const { data: timeEntries, error } = await supabase
       .from("time_entries")
       .select("id, employee_id, project_id, clock_in, clock_in_lat, clock_in_lng")
+      .eq("status", "clocked_in")
       .is("clock_out", null)
       .not("clock_in_lat", "is", null)
       .not("clock_in_lng", "is", null)
 
     if (error) {
-      console.error("Error fetching active employees:", error)
+      console.error("[v0] Error fetching active employees:", error)
       return NextResponse.json([])
     }
 
     if (!timeEntries || timeEntries.length === 0) {
+      console.log("[v0] No active employees found")
       return NextResponse.json([])
     }
+
+    console.log("[v0] Found", timeEntries.length, "active employees")
 
     const employeeIds = [...new Set(timeEntries.map((e) => e.employee_id))]
     const projectIds = [...new Set(timeEntries.map((e) => e.project_id))]
@@ -78,10 +50,10 @@ export async function GET() {
       }
     })
 
+    console.log("[v0] Returning", activeEmployees.length, "active employees with locations")
     return NextResponse.json(activeEmployees)
-    */
   } catch (error) {
-    console.error("Error in active-employees API:", error)
+    console.error("[v0] Error in active-employees API:", error)
     return NextResponse.json([])
   }
 }
