@@ -13,6 +13,10 @@ export class FileMakerClient {
     this.password = process.env.FILEMAKER_PASSWORD || ""
   }
 
+  private clearToken() {
+    this.token = null
+  }
+
   // Get authentication token
   private async getToken(): Promise<string> {
     if (this.token) return this.token
@@ -48,18 +52,39 @@ export class FileMakerClient {
     return this.token
   }
 
-  // Find records
-  async findRecords(layout: string, query?: any) {
+  private async makeAuthenticatedRequest(url: string, options: RequestInit, retryCount = 0): Promise<Response> {
     const token = await this.getToken()
 
-    const response = await fetch(`${this.baseUrl}/fmi/data/v1/databases/${this.database}/layouts/${layout}/_find`, {
-      method: "POST",
+    const response = await fetch(url, {
+      ...options,
       headers: {
-        "Content-Type": "application/json",
+        ...options.headers,
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ query: query || [{}] }),
     })
+
+    // If we get a 401 and haven't retried yet, clear token and retry
+    if (response.status === 401 && retryCount === 0) {
+      console.log("[v0] Got 401, clearing token and retrying...")
+      this.clearToken()
+      return this.makeAuthenticatedRequest(url, options, retryCount + 1)
+    }
+
+    return response
+  }
+
+  // Find records
+  async findRecords(layout: string, query?: any) {
+    const response = await this.makeAuthenticatedRequest(
+      `${this.baseUrl}/fmi/data/v1/databases/${this.database}/layouts/${layout}/_find`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ query: query || [{}] }),
+      },
+    )
 
     if (!response.ok) {
       throw new Error("Failed to find records")
@@ -70,15 +95,10 @@ export class FileMakerClient {
 
   // Get all records
   async getRecords(layout: string, limit = 100) {
-    const token = await this.getToken()
-
-    const response = await fetch(
+    const response = await this.makeAuthenticatedRequest(
       `${this.baseUrl}/fmi/data/v1/databases/${this.database}/layouts/${layout}/records?_limit=${limit}`,
       {
         method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
       },
     )
 
@@ -95,19 +115,16 @@ export class FileMakerClient {
     console.log("[v0] Layout:", layout)
     console.log("[v0] Field data:", JSON.stringify(fieldData, null, 2))
 
-    const token = await this.getToken()
-
     const url = `${this.baseUrl}/fmi/data/v1/databases/${this.database}/layouts/${layout}/records`
     console.log("[v0] Create record URL:", url)
 
     const body = JSON.stringify({ fieldData })
     console.log("[v0] Request body:", body)
 
-    const response = await fetch(url, {
+    const response = await this.makeAuthenticatedRequest(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
       },
       body,
     })
@@ -128,15 +145,12 @@ export class FileMakerClient {
 
   // Update record
   async updateRecord(layout: string, recordId: string, fieldData: any) {
-    const token = await this.getToken()
-
-    const response = await fetch(
+    const response = await this.makeAuthenticatedRequest(
       `${this.baseUrl}/fmi/data/v1/databases/${this.database}/layouts/${layout}/records/${recordId}`,
       {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ fieldData }),
       },
@@ -151,15 +165,10 @@ export class FileMakerClient {
 
   // Delete record
   async deleteRecord(layout: string, recordId: string) {
-    const token = await this.getToken()
-
-    const response = await fetch(
+    const response = await this.makeAuthenticatedRequest(
       `${this.baseUrl}/fmi/data/v1/databases/${this.database}/layouts/${layout}/records/${recordId}`,
       {
         method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
       },
     )
 
