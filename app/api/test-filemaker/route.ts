@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { fileMaker } from "@/lib/filemaker/client"
+import { FILEMAKER_LAYOUTS } from "@/lib/filemaker/config"
 
 export async function GET() {
   try {
@@ -19,9 +20,26 @@ export async function GET() {
     const projectsResult = await fileMaker.getRecords("T19_PROJECTS", 5)
     console.log("[v0] Projects fetched:", projectsResult.response?.data?.length || 0)
 
+    console.log("[v0] Testing write to T17z_TimeEntries layout...")
+    const testTimeEntry = {
+      employee_id: "STA001",
+      employee_name: "John Smith",
+      project_id: "PRJ001",
+      project_name: "Test Project",
+      clock_in: new Date().toISOString(),
+      status: "clocked_in",
+      notes: "Test entry from API",
+    }
+
+    console.log("[v0] Test data to write:", testTimeEntry)
+
+    const writeResult = await fileMaker.createRecord(FILEMAKER_LAYOUTS.TIME_ENTRIES, testTimeEntry)
+
+    console.log("[v0] Write result:", writeResult)
+
     return NextResponse.json({
       success: true,
-      message: "FileMaker connection successful!",
+      message: "FileMaker connection and write test successful!",
       data: {
         employees: {
           count: employeesResult.response?.data?.length || 0,
@@ -30,6 +48,11 @@ export async function GET() {
         projects: {
           count: projectsResult.response?.data?.length || 0,
           sample: projectsResult.response?.data?.[0]?.fieldData || null,
+        },
+        writeTest: {
+          success: !!writeResult.response?.recordId,
+          recordId: writeResult.response?.recordId,
+          data: testTimeEntry,
         },
       },
     })
