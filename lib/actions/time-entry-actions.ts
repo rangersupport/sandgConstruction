@@ -171,10 +171,6 @@ export async function clockIn(data: ClockInData): Promise<{ success: boolean; er
       [TIME_ENTRY_FIELDS.PROJECT_ID]: data.projectId,
       [TIME_ENTRY_FIELDS.CLOCK_IN]: clockInTimeFormatted,
       [TIME_ENTRY_FIELDS.STATUS]: "clocked_in",
-      [TIME_ENTRY_FIELDS.CREATOR]: employee?.name || "system",
-      [TIME_ENTRY_FIELDS.MODIFIER]: employee?.name || "system",
-      [TIME_ENTRY_FIELDS.CREATED_AT]: clockInTimeFormatted,
-      [TIME_ENTRY_FIELDS.MODIFIED_AT]: clockInTimeFormatted,
     }
 
     // Add optional fields if available
