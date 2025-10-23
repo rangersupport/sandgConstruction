@@ -21,19 +21,31 @@ interface MapViewProps {
 
 export default function MapView({ employees, center, onMarkerClick, selectedEmployee }: MapViewProps) {
   const [mapUrl, setMapUrl] = useState("")
+  const [mapboxToken, setMapboxToken] = useState<string>("")
 
   useEffect(() => {
-    const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || ""
+    async function fetchToken() {
+      try {
+        const response = await fetch("/api/mapbox-token")
+        const data = await response.json()
+        setMapboxToken(data.token)
+      } catch (error) {
+        console.error("Failed to fetch Mapbox token:", error)
+      }
+    }
+    fetchToken()
+  }, [])
+
+  useEffect(() => {
+    if (!mapboxToken) return
 
     if (employees.length === 0) {
-      // Default to Florida if no employees
       setMapUrl(
         `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/${center[1]},${center[0]},10,0/800x600@2x?access_token=${mapboxToken}`,
       )
       return
     }
 
-    // Calculate center from all employee locations
     const centerLat = employees.reduce((sum, emp) => sum + emp.latitude, 0) / employees.length
     const centerLng = employees.reduce((sum, emp) => sum + emp.longitude, 0) / employees.length
 
@@ -44,7 +56,7 @@ export default function MapView({ employees, center, onMarkerClick, selectedEmpl
     const url = `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/${markers}/${centerLng},${centerLat},10,0/800x600@2x?access_token=${mapboxToken}`
 
     setMapUrl(url)
-  }, [employees, center])
+  }, [employees, center, mapboxToken])
 
   return (
     <div className="w-full h-full relative bg-gray-100">
@@ -57,9 +69,7 @@ export default function MapView({ employees, center, onMarkerClick, selectedEmpl
               className="w-full h-full object-cover"
             />
 
-            {/* Clickable overlays for each employee */}
             {employees.map((employee, index) => {
-              // Calculate approximate pixel position (this is simplified)
               const position = {
                 left: `${20 + index * 15}%`,
                 top: `${30 + (index % 3) * 20}%`,
@@ -81,7 +91,6 @@ export default function MapView({ employees, center, onMarkerClick, selectedEmpl
             })}
           </div>
 
-          {/* Legend */}
           <div className="p-4 bg-white border-t">
             <div className="flex flex-wrap gap-4 text-sm">
               {employees.map((employee) => (

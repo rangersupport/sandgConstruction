@@ -29,6 +29,7 @@ export function ProjectMapMapbox() {
   const [selectedProject, setSelectedProject] = useState<string | null>(null)
   const [mapboxLoaded, setMapboxLoaded] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [mapboxToken, setMapboxToken] = useState<string>("")
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -58,28 +59,32 @@ export function ProjectMapMapbox() {
   }, [])
 
   useEffect(() => {
+    async function fetchToken() {
+      try {
+        const response = await fetch("/api/mapbox-token")
+        const data = await response.json()
+        setMapboxToken(data.token)
+      } catch (error) {
+        console.error("[v0] Failed to fetch Mapbox token:", error)
+        setError("Failed to load map configuration")
+      }
+    }
+    fetchToken()
+  }, [])
+
+  useEffect(() => {
     loadProjectLocations()
     const interval = setInterval(loadProjectLocations, 30000)
     return () => clearInterval(interval)
   }, [])
 
   useEffect(() => {
-    if (!mapboxLoaded || !mapContainer.current || map.current || projects.length === 0) return
+    if (!mapboxLoaded || !mapContainer.current || map.current || projects.length === 0 || !mapboxToken) return
 
     const mapboxgl = (window as any).mapboxgl
     if (!mapboxgl) {
       console.error("[v0] Mapbox GL not available")
       setError("Map library not loaded")
-      return
-    }
-
-    const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
-
-    if (!mapboxToken) {
-      console.error("[v0] NEXT_PUBLIC_MAPBOX_TOKEN is missing")
-      setError(
-        "Map configuration error: Missing API token. Please add NEXT_PUBLIC_MAPBOX_TOKEN to your environment variables.",
-      )
       return
     }
 
@@ -168,7 +173,7 @@ export function ProjectMapMapbox() {
       console.error("[v0] Error initializing map:", err)
       setError("Failed to initialize map")
     }
-  }, [mapboxLoaded, projects])
+  }, [mapboxLoaded, projects, mapboxToken])
 
   async function loadProjectLocations() {
     try {
