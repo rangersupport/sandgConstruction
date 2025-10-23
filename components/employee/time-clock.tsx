@@ -307,6 +307,18 @@ export function TimeClock({ employeeId, employeeName }: TimeClockProps) {
               )}
               <AlertDescription className={message.type === "warning" ? "text-orange-900 dark:text-orange-100" : ""}>
                 {message.text}
+                {message.type === "error" && message.text.includes("already clocked in") && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-3 w-full bg-transparent"
+                    onClick={handleClockOutClick}
+                    disabled={loading}
+                  >
+                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Clock Out Now
+                  </Button>
+                )}
               </AlertDescription>
             </Alert>
           )}
