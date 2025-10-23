@@ -33,13 +33,15 @@ export default function ProjectsPage() {
     try {
       const dbProjects = await getAllProjects()
 
+      const uniqueProjects = Array.from(new Map(dbProjects.map((p) => [p.id, p])).values())
+
       const response = await fetch("/api/project-locations")
       const activeProjects = await response.json()
 
       // Create a map of project IDs to active worker counts
       const workerCountMap = new Map(activeProjects.map((p: any) => [p.project_id, p.active_workers]))
 
-      const projectsWithWorkers: ProjectWithWorkers[] = dbProjects.map((p) => ({
+      const projectsWithWorkers: ProjectWithWorkers[] = uniqueProjects.map((p) => ({
         id: p.id,
         name: p.name,
         status: p.status || "active",

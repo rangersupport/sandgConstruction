@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server"
 import { fileMaker } from "@/lib/filemaker/client"
 import { revalidatePath } from "next/cache"
 import type { TimeEntry, EmployeeStatus } from "@/lib/types/database"
+import { FILEMAKER_LAYOUTS, TIME_ENTRY_FIELDS } from "@/lib/filemaker/config"
 
 interface ClockInData {
   employeeId: string
@@ -148,15 +149,13 @@ export async function clockIn(data: ClockInData): Promise<{ success: boolean; er
 
   try {
     // Write to FileMaker first (master data source)
-    const fileMakerResult = await fileMaker.createRecord("TimeEntries", {
-      employee_id: data.employeeId,
-      project_id: data.projectId,
-      clock_in: clockInTime,
-      clock_in_lat: data.latitude,
-      clock_in_lng: data.longitude,
-      location_verified: verification.verified,
-      distance_from_project: verification.distance || 0,
-      status: "clocked_in",
+    const fileMakerResult = await fileMaker.createRecord(FILEMAKER_LAYOUTS.TIME_ENTRIES, {
+      [TIME_ENTRY_FIELDS.EMPLOYEE_ID]: data.employeeId,
+      [TIME_ENTRY_FIELDS.PROJECT_ID]: data.projectId,
+      [TIME_ENTRY_FIELDS.CLOCK_IN]: clockInTime,
+      [TIME_ENTRY_FIELDS.CLOCK_IN_LAT]: data.latitude,
+      [TIME_ENTRY_FIELDS.CLOCK_IN_LNG]: data.longitude,
+      [TIME_ENTRY_FIELDS.STATUS]: "clocked_in",
     })
 
     console.log("[v0] FileMaker clock in successful:", fileMakerResult)
@@ -215,18 +214,18 @@ export async function clockOut(
 
     if (existingEntry) {
       // Find and update in FileMaker
-      const fileMakerRecords = await fileMaker.findRecords("TimeEntries", [
-        { employee_id: existingEntry.employee_id, status: "clocked_in" },
+      const fileMakerRecords = await fileMaker.findRecords(FILEMAKER_LAYOUTS.TIME_ENTRIES, [
+        { [TIME_ENTRY_FIELDS.EMPLOYEE_ID]: existingEntry.employee_id, [TIME_ENTRY_FIELDS.STATUS]: "clocked_in" },
       ])
 
       if (fileMakerRecords.response.data && fileMakerRecords.response.data.length > 0) {
         const recordId = fileMakerRecords.response.data[0].recordId
 
-        await fileMaker.updateRecord("TimeEntries", recordId, {
-          clock_out: clockOutTime,
-          clock_out_lat: data.latitude,
-          clock_out_lng: data.longitude,
-          status: "clocked_out",
+        await fileMaker.updateRecord(FILEMAKER_LAYOUTS.TIME_ENTRIES, recordId, {
+          [TIME_ENTRY_FIELDS.CLOCK_OUT]: clockOutTime,
+          [TIME_ENTRY_FIELDS.CLOCK_OUT_LAT]: data.latitude,
+          [TIME_ENTRY_FIELDS.CLOCK_OUT_LNG]: data.longitude,
+          [TIME_ENTRY_FIELDS.STATUS]: "clocked_out",
         })
 
         console.log("[v0] FileMaker clock out successful")
