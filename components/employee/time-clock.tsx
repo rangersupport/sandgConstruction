@@ -36,6 +36,7 @@ interface TimeClockProps {
 export function TimeClock({ employeeId, employeeName }: TimeClockProps) {
   const { coordinates, error: gpsError, loading: gpsLoading, requestLocation } = useGeolocation()
 
+  const [mounted, setMounted] = useState(false)
   const [status, setStatus] = useState<EmployeeStatus | null>(null)
   const [projects, setProjects] = useState<Project[]>([])
   const [selectedProjectId, setSelectedProjectId] = useState<string>("")
@@ -48,8 +49,14 @@ export function TimeClock({ employeeId, employeeName }: TimeClockProps) {
   const [message, setMessage] = useState<{ type: "success" | "error" | "warning"; text: string } | null>(null)
 
   useEffect(() => {
-    loadData()
-  }, [employeeId])
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (mounted) {
+      loadData()
+    }
+  }, [employeeId, mounted])
 
   useEffect(() => {
     if (!status?.is_clocked_in || !status.clock_in) return
@@ -195,6 +202,24 @@ export function TimeClock({ employeeId, employeeName }: TimeClockProps) {
     }
 
     setLoading(false)
+  }
+
+  if (!mounted) {
+    return (
+      <div className="w-full max-w-2xl mx-auto p-4 space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-2xl">Welcome, {employeeName}</CardTitle>
+            <CardDescription>S&G Construction Time Clock</CardDescription>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardContent className="pt-6 flex items-center justify-center">
+            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
