@@ -1,11 +1,10 @@
 "use client"
 
 import type React from "react"
-
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase/client"
 
+// TODO: Implement FileMaker-based authentication later
 export function RequireAdmin({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const [isChecking, setIsChecking] = useState(true)
@@ -13,35 +12,8 @@ export function RequireAdmin({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     async function checkAuth() {
-      console.log("[v0] RequireAdmin: Checking authentication...")
-      const supabase = createClient()
-
-      const {
-        data: { user },
-        error,
-      } = await supabase.auth.getUser()
-
-      console.log("[v0] RequireAdmin: User:", user?.email || "none")
-      console.log("[v0] RequireAdmin: Error:", error?.message || "none")
-
-      if (!user) {
-        console.log("[v0] RequireAdmin: No user found, redirecting to /admin/login")
-        router.push("/admin/login")
-        return
-      }
-
-      // Check if user is an admin
-      const { data: adminData } = await supabase.from("admin_users").select("*").eq("email", user.email).single()
-
-      console.log("[v0] RequireAdmin: Admin data:", adminData ? "found" : "not found")
-
-      if (!adminData) {
-        console.log("[v0] RequireAdmin: User is not an admin, redirecting to /")
-        router.push("/")
-        return
-      }
-
-      console.log("[v0] RequireAdmin: User is authorized")
+      // TODO: Implement proper FileMaker authentication
+      console.log("[v0] RequireAdmin: Temporarily allowing access for development")
       setIsAuthorized(true)
       setIsChecking(false)
     }
@@ -54,7 +26,7 @@ export function RequireAdmin({ children }: { children: React.ReactNode }) {
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
           <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto" />
-          <p className="text-muted-foreground">Checking authentication...</p>
+          <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>
     )

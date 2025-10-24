@@ -1,7 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import Sparkline from "./Sparkline"
 import { Badge } from "@/components/ui/badge"
-import { createClient } from "@/lib/supabase/server"
+import { getActiveTimeEntries } from "@/lib/actions/time-entry-actions"
+import { getAllEmployees } from "@/lib/actions/filemaker-employee-actions"
 import { AdminClockOutButton } from "@/components/admin/admin-clock-out-button"
 
 type ActiveWorkerRow = {
@@ -41,35 +42,18 @@ function formatDuration(hours: number): string {
 }
 
 export default async function DashboardPage() {
-  const supabase = await createClient()
-
-  const { data: activeWorkers } = await supabase
-    .from("time_entries")
-    .select(
-      `
-      id,
-      clock_in,
-      employee_id,
-      project_id,
-      employee:employees(name),
-      project:projects(name)
-    `,
-    )
-    .eq("status", "clocked_in")
-    .is("clock_out", null)
-    .order("clock_in", { ascending: false })
-
-  const { data: employees } = await supabase.from("employees").select("id").eq("is_active", true)
+  const activeWorkers = await getActiveTimeEntries()
+  const employees = await getAllEmployees()
 
   const activeWorkersData =
-    activeWorkers?.map((worker: any) => ({
+    activeWorkers?.map((worker) => ({
       id: worker.id,
-      name: worker.employee?.name || "Unknown",
-      project: worker.project?.name || "Unknown Project",
+      name: worker.employee_name || "Unknown",
+      project: worker.project_name || "Unknown Project",
       clockIn: worker.clock_in,
     })) || []
 
-  const totalEmployees = employees?.length || 0
+  const totalEmployees = employees?.filter((e) => e.status === "active").length || 0
 
   return (
     <div className="p-6 space-y-6">

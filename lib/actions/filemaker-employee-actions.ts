@@ -113,3 +113,24 @@ export async function clockOutFileMaker(employeeId: string, location?: { lat: nu
     return { success: false, error: "Failed to clock out to FileMaker" }
   }
 }
+
+export async function getAllEmployees() {
+  try {
+    const result = await fileMaker.getRecords(FILEMAKER_LAYOUTS.EMPLOYEES, 500)
+
+    if (!result.response.data) {
+      return []
+    }
+
+    return result.response.data.map((record: any) => ({
+      id: record.fieldData[EMPLOYEE_FIELDS.ID],
+      employee_number: record.fieldData[EMPLOYEE_FIELDS.EMPLOYEE_NUMBER],
+      name: record.fieldData[EMPLOYEE_FIELDS.NAME_FULL],
+      status: record.fieldData[EMPLOYEE_FIELDS.STATUS],
+      role: record.fieldData[EMPLOYEE_FIELDS.CATEGORY],
+    }))
+  } catch (error) {
+    console.error("[v0] Error fetching all employees:", error)
+    return []
+  }
+}

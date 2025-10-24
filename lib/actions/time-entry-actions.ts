@@ -225,3 +225,28 @@ export async function getTodayHours(employeeId: string): Promise<number> {
     return 0
   }
 }
+
+export async function getActiveTimeEntries() {
+  try {
+    const result = await fileMaker.findRecords(FILEMAKER_LAYOUTS.TIME_ENTRIES, [
+      { [TIME_ENTRY_FIELDS.STATUS]: "clocked_in" },
+    ])
+
+    if (!result.response.data) {
+      return []
+    }
+
+    return result.response.data.map((record: any) => ({
+      id: record.recordId,
+      employee_id: record.fieldData[TIME_ENTRY_FIELDS.EMPLOYEE_ID],
+      employee_name: record.fieldData[TIME_ENTRY_FIELDS.EMPLOYEE_NAME],
+      project_id: record.fieldData[TIME_ENTRY_FIELDS.PROJECT_ID],
+      project_name: record.fieldData[TIME_ENTRY_FIELDS.PROJECT_NAME],
+      clock_in: record.fieldData[TIME_ENTRY_FIELDS.CLOCK_IN],
+      status: record.fieldData[TIME_ENTRY_FIELDS.STATUS],
+    }))
+  } catch (error) {
+    console.error("[v0] Error fetching active time entries:", error)
+    return []
+  }
+}
