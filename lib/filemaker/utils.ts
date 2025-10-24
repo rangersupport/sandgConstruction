@@ -1,12 +1,11 @@
 /**
  * Formats a Date object or ISO string to FileMaker's expected format: MM/DD/YYYY HH:MM:SS AM/PM
- * Uses the local timezone to avoid double-conversion issues
+ * Uses Eastern Time (America/New_York) to match FileMaker server timezone
  */
 export function formatDateForFileMaker(date: Date | string): string {
   const d = typeof date === "string" ? new Date(date) : date
 
-  // Use local timezone instead of forcing Eastern Time
-  // This prevents double-conversion when the server is already in the correct timezone
+  // This prevents the 4-hour UTC offset issue
   const formatter = new Intl.DateTimeFormat("en-US", {
     year: "numeric",
     month: "2-digit",
@@ -15,6 +14,7 @@ export function formatDateForFileMaker(date: Date | string): string {
     minute: "2-digit",
     second: "2-digit",
     hour12: true,
+    timeZone: "America/New_York", // Force Eastern Time
   })
 
   const parts = formatter.formatToParts(d)
