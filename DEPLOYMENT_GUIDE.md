@@ -90,15 +90,12 @@ FILEMAKER_PASSWORD=707070Sss$
 
 # FileMaker Sync Token (for push endpoint authentication)
 FILEMAKER_SYNC_TOKEN=your-secret-token-change-this-in-production
-
-# Optional: For map display (can add later)
-NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your-google-maps-key
 \`\`\`
 
 ### Not Required (Removed)
 - ~~SUPABASE_URL~~ - Not using Supabase
 - ~~SUPABASE_SERVICE_ROLE_KEY~~ - Not using Supabase
-- ~~NEXT_PUBLIC_MAPBOX_TOKEN~~ - Using Google Maps instead (optional)
+- ~~Map API keys~~ - Map display can be added later as a separate feature
 
 ## Deployment Steps
 
@@ -175,11 +172,7 @@ Or in Vercel Dashboard:
 
 ## Map Display (Future Enhancement)
 
-Once deployed, you can add map visualization:
-
-1. Get Google Maps API key (free tier: 28,000 requests/month)
-2. Add `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` to Vercel
-3. Maps will automatically display clock-in/out locations
+Once deployed, you can add map visualization as a separate feature when needed. GPS coordinates are being captured and stored in FileMaker for future use.
 
 ## Troubleshooting
 
