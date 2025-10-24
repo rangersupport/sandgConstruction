@@ -174,44 +174,24 @@ export async function clockOut(data: ClockOutData): Promise<{ success: boolean; 
 
 export async function getActiveProjects() {
   try {
-    console.log("[v0] getActiveProjects called")
-    console.log("[v0] FileMaker layout:", FILEMAKER_LAYOUTS.PROJECTS)
-
     const result = await fileMaker.getRecords(FILEMAKER_LAYOUTS.PROJECTS, 100)
 
-    console.log("[v0] FileMaker response:", JSON.stringify(result, null, 2))
-
-    if (!result.response || !result.response.data) {
-      console.log("[v0] No response.data in FileMaker result")
-      return []
-    }
-
-    if (result.response.data.length === 0) {
+    if (!result?.response?.data || result.response.data.length === 0) {
       console.log("[v0] No projects found in FileMaker")
       return []
     }
 
-    console.log("[v0] Found projects:", result.response.data.length)
-    console.log("[v0] First project fieldData:", JSON.stringify(result.response.data[0].fieldData, null, 2))
+    const projects = result.response.data
+      .map((record: any) => ({
+        id: String(record.fieldData[PROJECT_FIELDS.ID] || record.recordId),
+        name: String(record.fieldData[PROJECT_FIELDS.NAME] || "Unnamed Project"),
+        status: String(record.fieldData[PROJECT_FIELDS.STATUS] || "Active"),
+      }))
+      .filter((p: any) => p.id && p.name)
 
-    const projects = result.response.data.map((record: any) => {
-      const project = {
-        id: record.fieldData[PROJECT_FIELDS.ID] || record.recordId,
-        name: record.fieldData[PROJECT_FIELDS.NAME] || "Unnamed Project",
-        status: record.fieldData[PROJECT_FIELDS.STATUS] || "Active",
-      }
-      console.log("[v0] Mapped project:", project)
-      return project
-    })
-
-    console.log("[v0] Returning projects:", projects)
     return projects
   } catch (error) {
     console.error("[v0] Error fetching projects:", error)
-    if (error instanceof Error) {
-      console.error("[v0] Error message:", error.message)
-      console.error("[v0] Error stack:", error.stack)
-    }
     return []
   }
 }

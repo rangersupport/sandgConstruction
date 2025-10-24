@@ -36,7 +36,6 @@ interface TimeClockProps {
 export function TimeClock({ employeeId, employeeName }: TimeClockProps) {
   const { coordinates, error: gpsError, loading: gpsLoading, requestLocation } = useGeolocation()
 
-  const [mounted, setMounted] = useState(false)
   const [status, setStatus] = useState<EmployeeStatus | null>(null)
   const [projects, setProjects] = useState<Project[]>([])
   const [selectedProjectId, setSelectedProjectId] = useState<string>("")
@@ -49,14 +48,8 @@ export function TimeClock({ employeeId, employeeName }: TimeClockProps) {
   const [message, setMessage] = useState<{ type: "success" | "error" | "warning"; text: string } | null>(null)
 
   useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  useEffect(() => {
-    if (mounted) {
-      loadData()
-    }
-  }, [employeeId, mounted])
+    loadData()
+  }, [employeeId])
 
   useEffect(() => {
     if (!status?.is_clocked_in || !status.clock_in) return
@@ -86,34 +79,26 @@ export function TimeClock({ employeeId, employeeName }: TimeClockProps) {
     try {
       console.log("[v0] TimeClock loadData called for employee:", employeeId)
 
-      let statusData = null
-      let projectsData = []
-      let hoursData = 0
+      const [statusData, projectsData, hoursData] = await Promise.allSettled([
+        getEmployeeStatus(employeeId),
+        getActiveProjects(),
+        getTodayHours(employeeId),
+      ])
 
-      try {
-        statusData = await getEmployeeStatus(employeeId)
-        console.log("[v0] Status data loaded:", statusData)
-      } catch (error) {
-        console.error("[v0] Error loading status:", error)
+      if (statusData.status === "fulfilled") {
+        setStatus(statusData.value)
       }
 
-      try {
-        projectsData = await getActiveProjects()
-        console.log("[v0] Projects data loaded:", projectsData)
-      } catch (error) {
-        console.error("[v0] Error loading projects:", error)
+      if (projectsData.status === "fulfilled") {
+        const projects = projectsData.value
+        setProjects(Array.isArray(projects) && projects.length > 0 ? projects : [])
+      } else {
+        setProjects([])
       }
 
-      try {
-        hoursData = await getTodayHours(employeeId)
-        console.log("[v0] Hours data loaded:", hoursData)
-      } catch (error) {
-        console.error("[v0] Error loading hours:", error)
+      if (hoursData.status === "fulfilled") {
+        setTodayHours(hoursData.value)
       }
-
-      setStatus(statusData)
-      setProjects(Array.isArray(projectsData) ? projectsData : [])
-      setTodayHours(hoursData)
 
       setMessage(null)
     } catch (error) {
@@ -202,24 +187,6 @@ export function TimeClock({ employeeId, employeeName }: TimeClockProps) {
     }
 
     setLoading(false)
-  }
-
-  if (!mounted) {
-    return (
-      <div className="w-full max-w-2xl mx-auto p-4 space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl">Welcome, {employeeName}</CardTitle>
-            <CardDescription>S&G Construction Time Clock</CardDescription>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardContent className="pt-6 flex items-center justify-center">
-            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-          </CardContent>
-        </Card>
-      </div>
-    )
   }
 
   return (
@@ -338,19 +305,24 @@ export function TimeClock({ employeeId, employeeName }: TimeClockProps) {
                   <SelectValue placeholder="Choose a project..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {projects && projects.length > 0 ? (
+                  {projects.length > 0 ? (
                     projects.map((project) => (
                       <SelectItem key={project.id} value={project.id}>
                         {project.name}
                       </SelectItem>
                     ))
                   ) : (
-                    <SelectItem value="" disabled>
+                    <SelectItem value="no-projects" disabled>
                       No projects available
                     </SelectItem>
                   )}
                 </SelectContent>
               </Select>
+              {projects.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  No projects found. Check FileMaker connection and T19_PROJECTS table.
+                </p>
+              )}
             </div>
           )}
 
