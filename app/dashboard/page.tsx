@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { getActiveTimeEntries } from "@/lib/actions/time-entry-actions"
 import { getAllEmployees } from "@/lib/actions/filemaker-employee-actions"
 import { AdminClockOutButton } from "@/components/admin/admin-clock-out-button"
+import { ActiveEmployeesMap } from "@/components/map/active-employees-map"
 
 type ActiveWorkerRow = {
   id: string
@@ -163,6 +164,10 @@ export default async function DashboardPage() {
             </ul>
           </CardContent>
         </Card>
+      </div>
+
+      <div className="mt-6">
+        <ActiveEmployeesMap />
       </div>
     </div>
   )

@@ -1,9 +1,9 @@
-import { ProjectMapMapbox } from "@/components/map/project-map-mapbox"
+import { ActiveEmployeesMap } from "@/components/map/active-employees-map"
 
 export default async function MapPage() {
   return (
-    <div className="h-screen w-full">
-      <ProjectMapMapbox />
+    <div className="container mx-auto p-6">
+      <ActiveEmployeesMap />
     </div>
   )
 }
