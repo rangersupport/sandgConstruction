@@ -22,6 +22,29 @@ function hashPIN(pin: string): string {
   return pin
 }
 
+function isWeakPIN(pin: string): boolean {
+  // Check if all digits are the same (1111, 2222, etc.)
+  if (/^(\d)\1+$/.test(pin)) {
+    return true
+  }
+
+  // Check if sequential ascending (1234, 2345, etc.)
+  const digits = pin.split("").map(Number)
+  let isAscending = true
+  let isDescending = true
+
+  for (let i = 1; i < digits.length; i++) {
+    if (digits[i] !== digits[i - 1] + 1) {
+      isAscending = false
+    }
+    if (digits[i] !== digits[i - 1] - 1) {
+      isDescending = false
+    }
+  }
+
+  return isAscending || isDescending
+}
+
 export async function employeeLogin(employeeNumber: string, pin: string): Promise<AuthResult> {
   try {
     console.log("[v0] employeeLogin: Starting login for employee:", employeeNumber)
@@ -202,9 +225,29 @@ export async function changeEmployeePIN(employeeId: string, newPIN: string, conf
       return { success: false, error: "PIN must be 4-6 digits" }
     }
 
+    if (isWeakPIN(newPIN)) {
+      return {
+        success: false,
+        error: "PIN is too weak. Avoid repeating digits (1111) or sequential numbers (1234)",
+      }
+    }
+
+    const now = new Date().toLocaleString("en-US", {
+      timeZone: "America/New_York",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    })
+
     await fileMaker.updateRecord(FILEMAKER_LAYOUTS.EMPLOYEES, employeeId, {
       [EMPLOYEE_FIELDS.PIN_HASH]: newPIN,
       [EMPLOYEE_FIELDS.MUST_CHANGE_PIN]: "0",
+      [EMPLOYEE_FIELDS.PIN_CHANGED]: "1",
+      [EMPLOYEE_FIELDS.PIN_LAST_CHANGED]: now,
     })
 
     return { success: true }
