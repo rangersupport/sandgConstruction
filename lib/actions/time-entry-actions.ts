@@ -5,10 +5,10 @@ import { revalidatePath } from "next/cache"
 import type { EmployeeStatus } from "@/lib/types/database"
 import { FILEMAKER_LAYOUTS, TIME_ENTRY_FIELDS, PROJECT_FIELDS } from "@/lib/filemaker/config"
 import { formatDateForFileMaker } from "@/lib/filemaker/utils"
-import { getEmployeeById } from "@/lib/employees/utils"
 
 interface ClockInData {
   employeeId: string
+  employeeName: string
   projectId: string
   latitude: number
   longitude: number
@@ -91,12 +91,11 @@ export async function clockIn(data: ClockInData): Promise<{ success: boolean; er
   const clockInTime = new Date()
   const clockInTimeFormatted = formatDateForFileMaker(clockInTime)
 
-  const employee = await getEmployeeById(data.employeeId)
   const project = await getProjectById(data.projectId)
 
   const fileMakerData = {
     [TIME_ENTRY_FIELDS.EMPLOYEE_ID]: data.employeeId,
-    [TIME_ENTRY_FIELDS.EMPLOYEE_NAME]: employee?.name || "Unknown Employee",
+    [TIME_ENTRY_FIELDS.EMPLOYEE_NAME]: data.employeeName,
     [TIME_ENTRY_FIELDS.PROJECT_ID]: data.projectId,
     [TIME_ENTRY_FIELDS.PROJECT_NAME]: project?.name || "Unknown Project",
     [TIME_ENTRY_FIELDS.CLOCK_IN]: clockInTimeFormatted,

@@ -130,6 +130,7 @@ export function TimeClock({ employeeId, employeeName }: TimeClockProps) {
 
     const result = await clockIn({
       employeeId,
+      employeeName,
       projectId: selectedProjectId,
       latitude: coordinates.latitude,
       longitude: coordinates.longitude,
