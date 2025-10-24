@@ -79,23 +79,26 @@ The FileMaker database already has all required fields:
 
 ### Required for Deployment
 
-Add these to your Vercel project:
+Your FileMaker server is already configured in the workspace:
 
 \`\`\`env
-# FileMaker Data API
-FILEMAKER_SERVER_URL=https://your-filemaker-server.com
-FILEMAKER_DATABASE=YourDatabase.fmp12
-FILEMAKER_USERNAME=your-api-username
-FILEMAKER_PASSWORD=your-api-password
+# FileMaker Data API (Already configured in your workspace)
+FILEMAKER_SERVER_URL=https://a0111065.fmphost.com
+FILEMAKER_DATABASE=SandGservices.fmp12
+FILEMAKER_USERNAME=admin
+FILEMAKER_PASSWORD=707070Sss$
+
+# FileMaker Sync Token (for push endpoint authentication)
+FILEMAKER_SYNC_TOKEN=your-secret-token-change-this-in-production
 
 # Optional: For map display (can add later)
-NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your-google-maps-key
+# NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your-google-maps-key
 \`\`\`
 
 ### Not Required (Removed)
 - ~~SUPABASE_URL~~ - Not using Supabase
 - ~~SUPABASE_SERVICE_ROLE_KEY~~ - Not using Supabase
-- ~~NEXT_PUBLIC_MAPBOX_TOKEN~~ - Using Google Maps instead
+- ~~NEXT_PUBLIC_MAPBOX_TOKEN~~ - Using Google Maps instead (optional)
 
 ## Deployment Steps
 
