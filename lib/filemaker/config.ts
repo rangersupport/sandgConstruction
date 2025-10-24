@@ -41,7 +41,8 @@ export const EMPLOYEE_FIELDS = {
 
 export const PROJECT_FIELDS = {
   ID: "_link_Project IDs | GIRR",
-  NAME: "Account_Name",
+  NAME: "Project_Name",
+  ACCOUNT_NAME: "Account_Name", // Added separate field for account name
   STATUS: "_link_Status | Search",
   CONTACT: "Contact",
   COMMENTS: "Comments",
