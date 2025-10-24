@@ -174,16 +174,19 @@ export async function clockOut(data: ClockOutData): Promise<{ success: boolean; 
 
 export async function getActiveProjects() {
   try {
-    const result = await fileMaker.findRecords(FILEMAKER_LAYOUTS.PROJECTS, [{ [PROJECT_FIELDS.STATUS]: "Active" }])
+    const result = await fileMaker.getAllRecords(FILEMAKER_LAYOUTS.PROJECTS)
 
-    if (!result.response.data) {
+    if (!result.response.data || result.response.data.length === 0) {
+      console.log("[v0] No projects found in FileMaker")
       return []
     }
+
+    console.log("[v0] Found projects:", result.response.data.length)
 
     return result.response.data.map((record: any) => ({
       id: record.fieldData[PROJECT_FIELDS.ID],
       name: record.fieldData[PROJECT_FIELDS.NAME],
-      status: record.fieldData[PROJECT_FIELDS.STATUS],
+      status: record.fieldData[PROJECT_FIELDS.STATUS] || "Active",
     }))
   } catch (error) {
     console.error("[v0] Error fetching projects:", error)
