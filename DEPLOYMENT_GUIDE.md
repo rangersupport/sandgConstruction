@@ -92,7 +92,7 @@ FILEMAKER_PASSWORD=707070Sss$
 FILEMAKER_SYNC_TOKEN=your-secret-token-change-this-in-production
 
 # Optional: For map display (can add later)
-# NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your-google-maps-key
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your-google-maps-key
 \`\`\`
 
 ### Not Required (Removed)
