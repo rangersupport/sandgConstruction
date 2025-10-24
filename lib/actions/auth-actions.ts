@@ -1,7 +1,9 @@
 "use server"
 
-import { createClient } from "@/lib/supabase/server"
+import { fileMaker } from "@/lib/filemaker/client"
+import { FILEMAKER_LAYOUTS, EMPLOYEE_FIELDS } from "@/lib/filemaker/config"
 import { redirect } from "next/navigation"
+import { cookies } from "next/headers"
 
 export interface AuthResult {
   success: boolean
@@ -14,70 +16,123 @@ export interface AuthResult {
   mustChangePIN?: boolean
 }
 
-// Admin login with email and password
-export async function adminLogin(email: string, password: string): Promise<AuthResult> {
+function hashPIN(pin: string): string {
+  // For now, return plain PIN since FileMaker stores plain text
+  // In production, you should use bcrypt or similar
+  return pin
+}
+
+export async function employeeLogin(employeeNumber: string, pin: string): Promise<AuthResult> {
   try {
-    console.log("[v0] adminLogin: Starting login for:", email)
-    const supabase = await createClient()
+    console.log("[v0] employeeLogin: Starting login for employee:", employeeNumber)
 
-    // Sign in with Supabase Auth
-    console.log("[v0] adminLogin: Calling supabase.auth.signInWithPassword")
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+    const result = await fileMaker.findRecords(FILEMAKER_LAYOUTS.EMPLOYEES, [
+      { [EMPLOYEE_FIELDS.EMPLOYEE_LOGIN_NUMBER]: employeeNumber },
+    ])
+
+    console.log("[v0] employeeLogin: FileMaker search result:", {
+      found: result.response.data?.length || 0,
+      dataLength: result.response.dataInfo?.foundCount,
     })
 
-    console.log("[v0] adminLogin: Auth response:", {
-      hasUser: !!data.user,
-      hasSession: !!data.session,
-      error: error?.message,
+    if (!result.response.data || result.response.data.length === 0) {
+      console.log("[v0] employeeLogin: No employee found with number:", employeeNumber)
+      return { success: false, error: "Invalid employee number or PIN" }
+    }
+
+    const employee = result.response.data[0].fieldData
+    console.log("[v0] employeeLogin: Found employee:", {
+      id: employee[EMPLOYEE_FIELDS.ID],
+      name: employee[EMPLOYEE_FIELDS.NAME_FULL],
+      hasPin: !!employee[EMPLOYEE_FIELDS.PIN_HASH],
     })
 
-    if (error) {
-      console.error("[v0] adminLogin: Auth error:", error.message)
-      return { success: false, error: error.message }
+    const storedPin = employee[EMPLOYEE_FIELDS.PIN_HASH]
+    if (storedPin !== pin) {
+      console.log("[v0] employeeLogin: PIN mismatch")
+      return { success: false, error: "Invalid employee number or PIN" }
     }
 
-    if (!data.user) {
-      console.error("[v0] adminLogin: No user in response")
-      return { success: false, error: "Authentication failed" }
-    }
+    console.log("[v0] employeeLogin: Login successful")
 
-    console.log("[v0] adminLogin: User authenticated, checking admin_users table")
-
-    // Verify user is an admin
-    const { data: adminUser, error: adminError } = await supabase
-      .from("admin_users")
-      .select("id, email, name, role, is_active")
-      .eq("email", email)
-      .single()
-
-    console.log("[v0] adminLogin: Admin user lookup:", {
-      found: !!adminUser,
-      error: adminError?.message,
-    })
-
-    if (adminError || !adminUser) {
-      console.error("[v0] adminLogin: Not an admin or error:", adminError?.message)
-      // Sign out if not an admin
-      await supabase.auth.signOut()
-      return { success: false, error: "Unauthorized: Admin access required" }
-    }
-
-    if (!adminUser.is_active) {
-      console.error("[v0] adminLogin: Admin account is inactive")
-      await supabase.auth.signOut()
-      return { success: false, error: "Account is inactive" }
-    }
-
-    console.log("[v0] adminLogin: Login successful for admin:", adminUser.email)
+    const cookieStore = await cookies()
+    cookieStore.set(
+      "employee_session",
+      JSON.stringify({
+        id: employee[EMPLOYEE_FIELDS.ID],
+        name: employee[EMPLOYEE_FIELDS.NAME_FULL],
+        employeeNumber: employee[EMPLOYEE_FIELDS.EMPLOYEE_LOGIN_NUMBER],
+        role: employee[EMPLOYEE_FIELDS.CATEGORY] || "employee",
+      }),
+      {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        maxAge: 60 * 60 * 24, // 24 hours
+        sameSite: "lax",
+      },
+    )
 
     return {
       success: true,
       user: {
-        id: adminUser.id,
-        email: adminUser.email,
-        role: adminUser.role,
+        id: employee[EMPLOYEE_FIELDS.ID],
+        email: employee[EMPLOYEE_FIELDS.NAME_FULL],
+        role: employee[EMPLOYEE_FIELDS.CATEGORY] || "employee",
+      },
+      mustChangePIN:
+        employee[EMPLOYEE_FIELDS.MUST_CHANGE_PIN] === "1" || employee[EMPLOYEE_FIELDS.MUST_CHANGE_PIN] === 1,
+    }
+  } catch (error) {
+    console.error("[v0] Employee login error:", error)
+    return { success: false, error: "An unexpected error occurred" }
+  }
+}
+
+// Admin login with email and password
+export async function adminLogin(email: string, password: string): Promise<AuthResult> {
+  try {
+    console.log("[v0] adminLogin: Starting login for:", email)
+
+    const result = await fileMaker.findRecords(FILEMAKER_LAYOUTS.EMPLOYEES, [{ [EMPLOYEE_FIELDS.EMAIL]: email }])
+
+    if (!result.response.data || result.response.data.length === 0) {
+      return { success: false, error: "Invalid credentials" }
+    }
+
+    const admin = result.response.data[0].fieldData
+
+    const webAdminRole = admin[EMPLOYEE_FIELDS.WEB_ADMIN_ROLE]
+    if (webAdminRole !== "admin" && webAdminRole !== "super_admin") {
+      return { success: false, error: "Unauthorized: Admin access required" }
+    }
+
+    if (admin[EMPLOYEE_FIELDS.PIN_HASH] !== password) {
+      return { success: false, error: "Invalid credentials" }
+    }
+
+    const cookieStore = await cookies()
+    cookieStore.set(
+      "admin_session",
+      JSON.stringify({
+        id: admin[EMPLOYEE_FIELDS.ID],
+        email: admin[EMPLOYEE_FIELDS.EMAIL],
+        name: admin[EMPLOYEE_FIELDS.NAME_FULL],
+        role: webAdminRole,
+      }),
+      {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+        sameSite: "lax",
+      },
+    )
+
+    return {
+      success: true,
+      user: {
+        id: admin[EMPLOYEE_FIELDS.ID],
+        email: admin[EMPLOYEE_FIELDS.EMAIL],
+        role: webAdminRole,
       },
     }
   } catch (error) {
@@ -86,198 +141,95 @@ export async function adminLogin(email: string, password: string): Promise<AuthR
   }
 }
 
-// Admin logout
-export async function adminLogout() {
-  const supabase = await createClient()
-  await supabase.auth.signOut()
-  redirect("/admin/login")
+// Get current employee from session
+export async function getCurrentEmployee() {
+  try {
+    const cookieStore = await cookies()
+    const sessionCookie = cookieStore.get("employee_session")
+
+    if (!sessionCookie) {
+      return null
+    }
+
+    const session = JSON.parse(sessionCookie.value)
+    return session
+  } catch (error) {
+    console.error("[v0] Get current employee error:", error)
+    return null
+  }
 }
 
 // Get current admin user
 export async function getCurrentAdmin() {
   try {
-    const supabase = await createClient()
+    const cookieStore = await cookies()
+    const sessionCookie = cookieStore.get("admin_session")
 
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser()
-
-    if (error || !user) {
+    if (!sessionCookie) {
       return null
     }
 
-    // Get admin details
-    const { data: adminUser } = await supabase
-      .from("admin_users")
-      .select("id, email, name, role, is_active")
-      .eq("email", user.email)
-      .single()
-
-    if (!adminUser || !adminUser.is_active) {
-      return null
-    }
-
-    return {
-      id: adminUser.id,
-      email: adminUser.email,
-      name: adminUser.name,
-      role: adminUser.role,
-    }
+    const session = JSON.parse(sessionCookie.value)
+    return session
   } catch (error) {
     console.error("[v0] Get current admin error:", error)
     return null
   }
 }
 
-// Employee login with employee number and PIN
-export async function employeeLogin(employeeNumber: string, pin: string): Promise<AuthResult> {
-  try {
-    const supabase = await createClient()
-
-    // Call the database function to verify PIN
-    const { data, error } = await supabase.rpc("verify_employee_pin", {
-      p_employee_number: employeeNumber,
-      p_pin: pin,
-    })
-
-    if (error) {
-      console.error("[v0] Employee login error:", error)
-      return { success: false, error: "Login failed. Please try again." }
-    }
-
-    if (!data || data.length === 0) {
-      return { success: false, error: "Invalid employee number or PIN" }
-    }
-
-    const result = data[0]
-
-    if (!result.success) {
-      return { success: false, error: result.message }
-    }
-
-    // Create a session by setting employee ID in a cookie
-    // Note: This is a simplified session - in production you'd use proper JWT tokens
-    return {
-      success: true,
-      user: {
-        id: result.employee_id,
-        email: result.employee_name,
-        role: result.employee_role,
-      },
-      mustChangePIN: result.must_change_pin,
-    }
-  } catch (error) {
-    console.error("[v0] Employee login error:", error)
-    return { success: false, error: "An unexpected error occurred" }
-  }
-}
-
 // Employee logout
 export async function employeeLogout() {
+  const cookieStore = await cookies()
+  cookieStore.delete("employee_session")
   redirect("/employee/login")
 }
 
-// Get current employee from session
-export async function getCurrentEmployee() {
-  // This would check the session cookie in a real implementation
-  // For now, we'll return null and handle sessions in the next phase
-  return null
+// Admin logout
+export async function adminLogout() {
+  const cookieStore = await cookies()
+  cookieStore.delete("admin_session")
+  redirect("/admin/login")
 }
 
+// Change employee PIN
 export async function changeEmployeePIN(employeeId: string, newPIN: string, confirmPIN: string): Promise<AuthResult> {
   try {
-    // Validate PINs match
     if (newPIN !== confirmPIN) {
       return { success: false, error: "PINs do not match" }
     }
 
-    // Validate PIN format
     if (!/^\d{4,6}$/.test(newPIN)) {
       return { success: false, error: "PIN must be 4-6 digits" }
     }
 
-    const supabase = await createClient()
-
-    // Call the database function to set PIN
-    const { data, error } = await supabase.rpc("set_employee_pin", {
-      p_employee_id: employeeId,
-      p_new_pin: newPIN,
+    await fileMaker.updateRecord(FILEMAKER_LAYOUTS.EMPLOYEES, employeeId, {
+      [EMPLOYEE_FIELDS.PIN_HASH]: newPIN,
+      [EMPLOYEE_FIELDS.MUST_CHANGE_PIN]: "0",
     })
-
-    if (error) {
-      console.error("[v0] Change PIN error:", error)
-      return { success: false, error: "Failed to change PIN. Please try again." }
-    }
-
-    if (!data || data.length === 0) {
-      return { success: false, error: "Failed to change PIN" }
-    }
-
-    const result = data[0]
-
-    if (!result.success) {
-      return { success: false, error: result.message }
-    }
 
     return { success: true }
   } catch (error) {
     console.error("[v0] Change PIN error:", error)
-    return { success: false, error: "An unexpected error occurred" }
+    return { success: false, error: "Failed to change PIN" }
   }
 }
 
+// Admin reset employee PIN
 export async function adminResetEmployeePIN(employeeId: string, newPIN: string): Promise<AuthResult> {
   try {
-    // Validate PIN format
     if (!/^\d{4,6}$/.test(newPIN)) {
       return { success: false, error: "PIN must be 4-6 digits" }
     }
 
-    const supabase = await createClient()
-
-    // Verify admin is authenticated
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) {
-      return { success: false, error: "Unauthorized" }
-    }
-
-    // Call the database function to set PIN
-    const { data, error } = await supabase.rpc("set_employee_pin", {
-      p_employee_id: employeeId,
-      p_new_pin: newPIN,
+    await fileMaker.updateRecord(FILEMAKER_LAYOUTS.EMPLOYEES, employeeId, {
+      [EMPLOYEE_FIELDS.PIN_HASH]: newPIN,
+      [EMPLOYEE_FIELDS.MUST_CHANGE_PIN]: "1",
+      [EMPLOYEE_FIELDS.FAILED_LOGIN_ATTEMPTS]: "0",
     })
-
-    if (error) {
-      console.error("[v0] Admin reset PIN error:", error)
-      return { success: false, error: "Failed to reset PIN. Please try again." }
-    }
-
-    if (!data || data.length === 0) {
-      return { success: false, error: "Failed to reset PIN" }
-    }
-
-    const result = data[0]
-
-    if (!result.success) {
-      return { success: false, error: result.message }
-    }
-
-    // Also unlock the account if it was locked
-    await supabase
-      .from("employees")
-      .update({
-        failed_login_attempts: 0,
-        locked_until: null,
-        must_change_pin: true,
-      })
-      .eq("id", employeeId)
 
     return { success: true }
   } catch (error) {
     console.error("[v0] Admin reset PIN error:", error)
-    return { success: false, error: "An unexpected error occurred" }
+    return { success: false, error: "Failed to reset PIN" }
   }
 }
