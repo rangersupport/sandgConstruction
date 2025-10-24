@@ -177,7 +177,7 @@ export async function getActiveProjects() {
     console.log("[v0] getActiveProjects called")
     console.log("[v0] FileMaker layout:", FILEMAKER_LAYOUTS.PROJECTS)
 
-    const result = await fileMaker.getAllRecords(FILEMAKER_LAYOUTS.PROJECTS)
+    const result = await fileMaker.getRecords(FILEMAKER_LAYOUTS.PROJECTS, 100)
 
     console.log("[v0] FileMaker response:", JSON.stringify(result, null, 2))
 
@@ -192,7 +192,7 @@ export async function getActiveProjects() {
     }
 
     console.log("[v0] Found projects:", result.response.data.length)
-    console.log("[v0] First project:", JSON.stringify(result.response.data[0], null, 2))
+    console.log("[v0] First project fieldData:", JSON.stringify(result.response.data[0].fieldData, null, 2))
 
     const projects = result.response.data.map((record: any) => {
       const project = {
@@ -204,6 +204,7 @@ export async function getActiveProjects() {
       return project
     })
 
+    console.log("[v0] Returning projects:", projects)
     return projects
   } catch (error) {
     console.error("[v0] Error fetching projects:", error)

@@ -111,7 +111,14 @@ export class FileMakerClient {
 
   async getAllRecords(layout: string, limit = 100) {
     console.log("[v0] FileMaker getAllRecords called for layout:", layout)
-    return this.getRecords(layout, limit)
+    try {
+      const result = await this.getRecords(layout, limit)
+      console.log("[v0] FileMaker getAllRecords result:", JSON.stringify(result, null, 2))
+      return result
+    } catch (error) {
+      console.error("[v0] FileMaker getAllRecords error:", error)
+      throw error
+    }
   }
 
   // Create record

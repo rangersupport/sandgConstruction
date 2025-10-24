@@ -77,25 +77,40 @@ export function TimeClock({ employeeId, employeeName }: TimeClockProps) {
 
   async function loadData() {
     try {
-      console.log("[v0] loadData called for employee:", employeeId)
+      console.log("[v0] TimeClock loadData called for employee:", employeeId)
 
-      const [statusData, projectsData, hoursData] = await Promise.all([
-        getEmployeeStatus(employeeId),
-        getActiveProjects(),
-        getTodayHours(employeeId),
-      ])
+      let statusData = null
+      let projectsData = []
+      let hoursData = 0
 
-      console.log("[v0] Status data:", statusData)
-      console.log("[v0] Projects data:", projectsData)
-      console.log("[v0] Hours data:", hoursData)
+      try {
+        statusData = await getEmployeeStatus(employeeId)
+        console.log("[v0] Status data loaded:", statusData)
+      } catch (error) {
+        console.error("[v0] Error loading status:", error)
+      }
+
+      try {
+        projectsData = await getActiveProjects()
+        console.log("[v0] Projects data loaded:", projectsData)
+      } catch (error) {
+        console.error("[v0] Error loading projects:", error)
+      }
+
+      try {
+        hoursData = await getTodayHours(employeeId)
+        console.log("[v0] Hours data loaded:", hoursData)
+      } catch (error) {
+        console.error("[v0] Error loading hours:", error)
+      }
 
       setStatus(statusData)
-      setProjects(projectsData || []) // Added fallback to empty array
+      setProjects(Array.isArray(projectsData) ? projectsData : [])
       setTodayHours(hoursData)
 
       setMessage(null)
     } catch (error) {
-      console.error("[v0] Error loading data:", error)
+      console.error("[v0] Error in loadData:", error)
       setMessage({ type: "error", text: "Failed to load data" })
       setProjects([])
     }
