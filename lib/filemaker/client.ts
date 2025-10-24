@@ -109,6 +109,11 @@ export class FileMakerClient {
     return response.json()
   }
 
+  async getAllRecords(layout: string, limit = 100) {
+    console.log("[v0] FileMaker getAllRecords called for layout:", layout)
+    return this.getRecords(layout, limit)
+  }
+
   // Create record
   async createRecord(layout: string, fieldData: any) {
     console.log("[v0] FileMaker createRecord called")

@@ -174,22 +174,43 @@ export async function clockOut(data: ClockOutData): Promise<{ success: boolean; 
 
 export async function getActiveProjects() {
   try {
+    console.log("[v0] getActiveProjects called")
+    console.log("[v0] FileMaker layout:", FILEMAKER_LAYOUTS.PROJECTS)
+
     const result = await fileMaker.getAllRecords(FILEMAKER_LAYOUTS.PROJECTS)
 
-    if (!result.response.data || result.response.data.length === 0) {
+    console.log("[v0] FileMaker response:", JSON.stringify(result, null, 2))
+
+    if (!result.response || !result.response.data) {
+      console.log("[v0] No response.data in FileMaker result")
+      return []
+    }
+
+    if (result.response.data.length === 0) {
       console.log("[v0] No projects found in FileMaker")
       return []
     }
 
     console.log("[v0] Found projects:", result.response.data.length)
+    console.log("[v0] First project:", JSON.stringify(result.response.data[0], null, 2))
 
-    return result.response.data.map((record: any) => ({
-      id: record.fieldData[PROJECT_FIELDS.ID],
-      name: record.fieldData[PROJECT_FIELDS.NAME],
-      status: record.fieldData[PROJECT_FIELDS.STATUS] || "Active",
-    }))
+    const projects = result.response.data.map((record: any) => {
+      const project = {
+        id: record.fieldData[PROJECT_FIELDS.ID] || record.recordId,
+        name: record.fieldData[PROJECT_FIELDS.NAME] || "Unnamed Project",
+        status: record.fieldData[PROJECT_FIELDS.STATUS] || "Active",
+      }
+      console.log("[v0] Mapped project:", project)
+      return project
+    })
+
+    return projects
   } catch (error) {
     console.error("[v0] Error fetching projects:", error)
+    if (error instanceof Error) {
+      console.error("[v0] Error message:", error.message)
+      console.error("[v0] Error stack:", error.stack)
+    }
     return []
   }
 }

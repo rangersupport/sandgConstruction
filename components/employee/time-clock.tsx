@@ -77,20 +77,27 @@ export function TimeClock({ employeeId, employeeName }: TimeClockProps) {
 
   async function loadData() {
     try {
+      console.log("[v0] loadData called for employee:", employeeId)
+
       const [statusData, projectsData, hoursData] = await Promise.all([
         getEmployeeStatus(employeeId),
         getActiveProjects(),
         getTodayHours(employeeId),
       ])
 
+      console.log("[v0] Status data:", statusData)
+      console.log("[v0] Projects data:", projectsData)
+      console.log("[v0] Hours data:", hoursData)
+
       setStatus(statusData)
-      setProjects(projectsData)
+      setProjects(projectsData || []) // Added fallback to empty array
       setTodayHours(hoursData)
 
       setMessage(null)
     } catch (error) {
-      console.error("Error loading data:", error)
+      console.error("[v0] Error loading data:", error)
       setMessage({ type: "error", text: "Failed to load data" })
+      setProjects([])
     }
   }
 
@@ -291,11 +298,17 @@ export function TimeClock({ employeeId, employeeName }: TimeClockProps) {
                   <SelectValue placeholder="Choose a project..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {projects.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
-                      {project.name}
+                  {projects && projects.length > 0 ? (
+                    projects.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.name}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="" disabled>
+                      No projects available
                     </SelectItem>
-                  ))}
+                  )}
                 </SelectContent>
               </Select>
             </div>
