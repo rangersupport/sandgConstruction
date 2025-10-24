@@ -1,11 +1,10 @@
 import { createBrowserClient } from "@supabase/ssr"
-import { supabaseConfig } from "./config"
+import { supabaseConfig, isSupabaseConfigured } from "./config"
 
 export function createClient() {
-  if (!supabaseConfig.url || !supabaseConfig.anonKey) {
-    throw new Error(
-      "Supabase configuration is missing. Please add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to your environment variables.",
-    )
+  if (!isSupabaseConfigured()) {
+    console.warn("[v0] Supabase is not configured. Skipping client creation.")
+    return null
   }
 
   return createBrowserClient(supabaseConfig.url, supabaseConfig.anonKey)

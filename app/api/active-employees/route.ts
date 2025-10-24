@@ -5,6 +5,11 @@ export async function GET() {
   try {
     const supabase = await createClient()
 
+    if (!supabase) {
+      console.warn("[v0] Supabase not configured, returning empty array")
+      return NextResponse.json([])
+    }
+
     const { data: timeEntries, error } = await supabase
       .from("time_entries")
       .select("id, employee_id, project_id, clock_in, clock_in_lat, clock_in_lng")

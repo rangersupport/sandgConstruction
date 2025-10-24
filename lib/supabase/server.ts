@@ -1,8 +1,13 @@
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
-import { supabaseConfig } from "./config"
+import { supabaseConfig, isSupabaseConfigured } from "./config"
 
 export async function createClient() {
+  if (!isSupabaseConfigured()) {
+    console.warn("[v0] Supabase is not configured. Skipping server client creation.")
+    return null
+  }
+
   const cookieStore = await cookies()
 
   return createServerClient(supabaseConfig.url, supabaseConfig.anonKey, {

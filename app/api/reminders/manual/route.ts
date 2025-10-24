@@ -7,6 +7,10 @@ export async function POST(request: Request) {
   try {
     const supabase = await createClient()
 
+    if (!supabase) {
+      return NextResponse.json({ error: "Supabase not configured" }, { status: 503 })
+    }
+
     // TODO: Add proper authentication check for admin users
     // For now, this is open for testing purposes
 
