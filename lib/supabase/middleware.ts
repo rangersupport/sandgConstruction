@@ -7,25 +7,34 @@ export async function updateSession(request: NextRequest) {
     request,
   })
 
-  const supabase = createServerClient(supabaseConfig.url, supabaseConfig.anonKey, {
-    cookies: {
-      getAll() {
-        return request.cookies.getAll()
-      },
-      setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
-        supabaseResponse = NextResponse.next({
-          request,
-        })
-        cookiesToSet.forEach(({ name, value, options }) => supabaseResponse.cookies.set(name, value, options))
-      },
-    },
-  })
+  if (!supabaseConfig.url || !supabaseConfig.anonKey) {
+    console.log("[v0] Supabase not configured, skipping auth middleware")
+    return supabaseResponse
+  }
 
-  // This allows testers to access the dashboard and map without login
+  try {
+    const supabase = createServerClient(supabaseConfig.url, supabaseConfig.anonKey, {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+          supabaseResponse = NextResponse.next({
+            request,
+          })
+          cookiesToSet.forEach(({ name, value, options }) => supabaseResponse.cookies.set(name, value, options))
+        },
+      },
+    })
 
-  // Just refresh the session if it exists, but don't enforce any redirects
-  await supabase.auth.getUser()
+    // This allows testers to access the dashboard and map without login
+
+    // Just refresh the session if it exists, but don't enforce any redirects
+    await supabase.auth.getUser()
+  } catch (error) {
+    console.error("[v0] Supabase middleware error:", error)
+  }
 
   return supabaseResponse
 }
