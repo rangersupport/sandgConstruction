@@ -7,7 +7,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Loader2, MapPin, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { getMapboxToken } from "@/lib/actions/map-actions"
 
 interface ActiveLocation {
   id: string
@@ -54,33 +53,34 @@ export function ActiveEmployeesMap() {
   }
 
   useEffect(() => {
-    async function initializeMap() {
-      const token = await getMapboxToken()
-      setMapboxToken(token)
-      mapboxgl.accessToken = token
-
-      if (!mapContainer.current || !token) return
-
-      map.current = new mapboxgl.Map({
-        container: mapContainer.current,
-        style: "mapbox://styles/mapbox/streets-v12",
-        center: [-82.4572, 27.9506], // Florida center
-        zoom: 8,
-      })
-
-      map.current.addControl(new mapboxgl.NavigationControl(), "top-right")
-
-      fetchLocations()
-
-      const interval = setInterval(fetchLocations, 30000)
-
-      return () => {
-        clearInterval(interval)
-        map.current?.remove()
-      }
+    const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
+    if (!token) {
+      setError("Mapbox token not configured")
+      setLoading(false)
+      return
     }
 
-    initializeMap()
+    mapboxgl.accessToken = token
+
+    if (!mapContainer.current) return
+
+    map.current = new mapboxgl.Map({
+      container: mapContainer.current,
+      style: "mapbox://styles/mapbox/streets-v12",
+      center: [-82.4572, 27.9506], // Florida center
+      zoom: 8,
+    })
+
+    map.current.addControl(new mapboxgl.NavigationControl(), "top-right")
+
+    fetchLocations()
+
+    const interval = setInterval(fetchLocations, 30000)
+
+    return () => {
+      clearInterval(interval)
+      map.current?.remove()
+    }
   }, [])
 
   useEffect(() => {

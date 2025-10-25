@@ -17,6 +17,7 @@ export async function updateSession(request: NextRequest) {
     request,
   })
 
+  // If Supabase is not configured, skip middleware
   if (!isValidHttpUrl(supabaseConfig.url) || !supabaseConfig.anonKey || supabaseConfig.anonKey.trim() === "") {
     return supabaseResponse
   }
@@ -37,11 +38,10 @@ export async function updateSession(request: NextRequest) {
       },
     })
 
-    // This allows testers to access the dashboard and map without login
-
-    // Just refresh the session if it exists, but don't enforce any redirects
+    // Refresh session if it exists, but don't enforce redirects
     await supabase.auth.getUser()
   } catch (error) {
+    // Silently handle errors - don't block requests if Supabase is unavailable
     console.error("[v0] Supabase middleware error:", error)
   }
 
