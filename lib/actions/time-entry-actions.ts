@@ -1,158 +1,283 @@
-'use server';
+"use server"
 
-import { createClient } from '@/lib/supabase/server';
-import { revalidatePath } from 'next/cache';
-import type { TimeEntry, EmployeeStatus } from '@/lib/types/database';
+import { fileMaker } from "@/lib/filemaker/client"
+import { revalidatePath } from "next/cache"
+import type { EmployeeStatus } from "@/lib/types/database"
+import { FILEMAKER_LAYOUTS, TIME_ENTRY_FIELDS, PROJECT_FIELDS, EMPLOYEE_FIELDS } from "@/lib/filemaker/config"
+import { formatDateForFileMaker, parseDateFromFileMaker } from "@/lib/filemaker/utils"
 
 interface ClockInData {
-  employeeId: string;
-  projectId: string;
-  latitude: number;
-  longitude: number;
-  accuracy: number;
+  employeeId: string
+  employeeName: string
+  projectId: string
+  latitude: number
+  longitude: number
+  accuracy: number
 }
 
 interface ClockOutData {
-  timeEntryId: string;
-  latitude: number;
-  longitude: number;
-  accuracy: number;
+  timeEntryId: string
+  latitude: number
+  longitude: number
+  accuracy: number
+}
+
+async function getProjectById(projectId: string) {
+  try {
+    const result = await fileMaker.findRecords(FILEMAKER_LAYOUTS.PROJECTS, [{ [PROJECT_FIELDS.ID]: projectId }])
+
+    if (result.response.data && result.response.data.length > 0) {
+      return {
+        id: result.response.data[0].fieldData[PROJECT_FIELDS.ID],
+        name: result.response.data[0].fieldData[PROJECT_FIELDS.NAME],
+      }
+    }
+    return null
+  } catch (error) {
+    console.error("[v0] Error fetching project:", error)
+    return null
+  }
 }
 
 export async function getEmployeeStatus(employeeId: string): Promise<EmployeeStatus | null> {
-  const supabase = await createClient();
+  try {
+    const result = await fileMaker.findRecords(FILEMAKER_LAYOUTS.TIME_ENTRIES, [
+      {
+        [TIME_ENTRY_FIELDS.EMPLOYEE_ID]: employeeId,
+        [TIME_ENTRY_FIELDS.STATUS]: "clocked_in",
+      },
+    ])
 
-  const { data, error } = await supabase
-    .rpc('get_employee_current_status', { emp_id: employeeId })
-    .single();
-
-  if (error) {
-    if (error.code === 'PGRST116') {
+    if (!result.response.data || result.response.data.length === 0) {
       return {
         is_clocked_in: false,
         time_entry_id: null,
         project_id: null,
         project_name: null,
         clock_in: null,
-        hours_elapsed: null
-      };
+        hours_elapsed: null,
+      }
     }
-    console.error('Error fetching employee status:', error);
-    return null;
-  }
 
-  return data;
+    const record = result.response.data[0]
+    const clockInStr = record.fieldData[TIME_ENTRY_FIELDS.CLOCK_IN]
+    const clockInDate = parseDateFromFileMaker(clockInStr)
+    const hoursElapsed = (Date.now() - clockInDate.getTime()) / 3600000
+
+    console.log("[v0] Clock-in parsing:", {
+      fileMakerString: clockInStr,
+      parsedDate: clockInDate.toISOString(),
+      hoursElapsed: hoursElapsed.toFixed(2),
+    })
+
+    return {
+      is_clocked_in: true,
+      time_entry_id: record.recordId,
+      project_id: record.fieldData[TIME_ENTRY_FIELDS.PROJECT_ID],
+      project_name: record.fieldData[TIME_ENTRY_FIELDS.PROJECT_NAME],
+      clock_in: clockInDate.toISOString(),
+      hours_elapsed: hoursElapsed,
+    }
+  } catch (error) {
+    console.error("[v0] Error fetching employee status:", error)
+    return null
+  }
 }
 
-export async function clockIn(data: ClockInData): Promise<{ success: boolean; error?: string; timeEntry?: TimeEntry }> {
-  const supabase = await createClient();
+export async function clockIn(data: ClockInData): Promise<{ success: boolean; error?: string; timeEntry?: any }> {
+  try {
+    const employeeResult = await fileMaker.findRecords(FILEMAKER_LAYOUTS.EMPLOYEES, [
+      { [EMPLOYEE_FIELDS.EMPLOYEE_LOGIN_NUMBER]: data.employeeId },
+    ])
 
-  const status = await getEmployeeStatus(data.employeeId);
+    if (employeeResult.response.data && employeeResult.response.data.length > 0) {
+      const employee = employeeResult.response.data[0].fieldData
+      const mustChangePin =
+        employee[EMPLOYEE_FIELDS.MUST_CHANGE_PIN] === "1" || employee[EMPLOYEE_FIELDS.MUST_CHANGE_PIN] === 1
+
+      if (mustChangePin) {
+        return {
+          success: false,
+          error: "You must change your PIN before clocking in. Please log out and change your PIN first.",
+        }
+      }
+    }
+  } catch (error) {
+    console.error("[v0] Error checking employee PIN status:", error)
+  }
+
+  const status = await getEmployeeStatus(data.employeeId)
   if (status?.is_clocked_in) {
+    const clockInTime = new Date(status.clock_in!).toLocaleString()
     return {
       success: false,
-      error: 'You are already clocked in. Please clock out first.'
-    };
+      error: `You are already clocked in at ${status.project_name} since ${clockInTime}. Please clock out before clocking in again.`,
+    }
   }
 
-  const { data: timeEntry, error } = await supabase
-    .from('time_entries')
-    .insert({
-      employee_id: data.employeeId,
-      project_id: data.projectId,
-      clock_in: new Date().toISOString(),
-      clock_in_latitude: data.latitude,
-      clock_in_longitude: data.longitude,
-      clock_in_accuracy: data.accuracy,
-      status: 'clocked_in'
-    })
-    .select()
-    .single();
+  const clockInTime = new Date()
+  const clockInTimeFormatted = formatDateForFileMaker(clockInTime)
 
-  if (error) {
-    console.error('Error clocking in:', error);
+  const project = await getProjectById(data.projectId)
+
+  const fileMakerData = {
+    [TIME_ENTRY_FIELDS.EMPLOYEE_ID]: data.employeeId,
+    [TIME_ENTRY_FIELDS.EMPLOYEE_NAME]: data.employeeName,
+    [TIME_ENTRY_FIELDS.PROJECT_ID]: data.projectId,
+    [TIME_ENTRY_FIELDS.PROJECT_NAME]: project?.name || "Unknown Project",
+    [TIME_ENTRY_FIELDS.CLOCK_IN]: clockInTimeFormatted,
+    [TIME_ENTRY_FIELDS.CLOCK_IN_LAT]: data.latitude,
+    [TIME_ENTRY_FIELDS.CLOCK_IN_LNG]: data.longitude,
+    [TIME_ENTRY_FIELDS.CLOCK_IN_LOCATION]: `${data.latitude}, ${data.longitude}`,
+    [TIME_ENTRY_FIELDS.STATUS]: "clocked_in",
+    [TIME_ENTRY_FIELDS.NOTES]: `Clocked in via web app. GPS accuracy: ±${data.accuracy.toFixed(0)}m`,
+  }
+
+  console.log("[v0] Clock-in FileMaker data:", JSON.stringify(fileMakerData, null, 2))
+
+  try {
+    const fileMakerResult = await fileMaker.createRecord(FILEMAKER_LAYOUTS.TIME_ENTRIES, fileMakerData)
+    console.log("[v0] FileMaker clock in successful:", JSON.stringify(fileMakerResult, null, 2))
+
+    revalidatePath("/employee")
+    revalidatePath("/dashboard")
+
+    return {
+      success: true,
+      timeEntry: {
+        id: fileMakerResult.response.recordId,
+        employee_id: data.employeeId,
+        project_id: data.projectId,
+        clock_in: clockInTime.toISOString(),
+      },
+    }
+  } catch (error) {
+    console.error("[v0] FileMaker clock in failed:", error)
     return {
       success: false,
-      error: error.message
-    };
+      error: error instanceof Error ? error.message : "Failed to clock in",
+    }
   }
-
-  revalidatePath('/employee');
-  revalidatePath('/dashboard');
-
-  return {
-    success: true,
-    timeEntry
-  };
 }
 
-export async function clockOut(data: ClockOutData): Promise<{ success: boolean; error?: string; timeEntry?: TimeEntry }> {
-  const supabase = await createClient();
+export async function clockOut(data: ClockOutData): Promise<{ success: boolean; error?: string; timeEntry?: any }> {
+  const clockOutTime = new Date()
+  const clockOutTimeFormatted = formatDateForFileMaker(clockOutTime)
 
-  const { data: timeEntry, error } = await supabase
-    .from('time_entries')
-    .update({
-      clock_out: new Date().toISOString(),
-      clock_out_latitude: data.latitude,
-      clock_out_longitude: data.longitude,
-      clock_out_accuracy: data.accuracy,
-      status: 'clocked_out'
-    })
-    .eq('id', data.timeEntryId)
-    .select()
-    .single();
+  try {
+    const updateData = {
+      [TIME_ENTRY_FIELDS.CLOCK_OUT]: clockOutTimeFormatted,
+      [TIME_ENTRY_FIELDS.CLOCK_OUT_LAT]: data.latitude,
+      [TIME_ENTRY_FIELDS.CLOCK_OUT_LNG]: data.longitude,
+      [TIME_ENTRY_FIELDS.CLOCK_OUT_LOCATION]: `${data.latitude}, ${data.longitude}`,
+      [TIME_ENTRY_FIELDS.STATUS]: "clocked_out",
+    }
 
-  if (error) {
-    console.error('Error clocking out:', error);
+    console.log("[v0] Updating FileMaker record", data.timeEntryId, "with data:", JSON.stringify(updateData, null, 2))
+
+    const updateResult = await fileMaker.updateRecord(FILEMAKER_LAYOUTS.TIME_ENTRIES, data.timeEntryId, updateData)
+
+    console.log("[v0] FileMaker clock out successful:", JSON.stringify(updateResult, null, 2))
+
+    revalidatePath("/employee")
+    revalidatePath("/dashboard")
+
+    return {
+      success: true,
+      timeEntry: {
+        id: data.timeEntryId,
+        clock_out: clockOutTime.toISOString(),
+      },
+    }
+  } catch (error) {
+    console.error("[v0] FileMaker clock out failed:", error)
     return {
       success: false,
-      error: error.message
-    };
+      error: error instanceof Error ? error.message : "Failed to clock out",
+    }
   }
-
-  revalidatePath('/employee');
-  revalidatePath('/dashboard');
-
-  return {
-    success: true,
-    timeEntry
-  };
 }
 
 export async function getActiveProjects() {
-  const supabase = await createClient();
+  try {
+    const result = await fileMaker.getRecords(FILEMAKER_LAYOUTS.PROJECTS, 100)
 
-  const { data, error } = await supabase
-    .from('projects')
-    .select('*')
-    .eq('status', 'active')
-    .order('name');
+    if (!result?.response?.data || result.response.data.length === 0) {
+      console.log("[v0] No projects found in FileMaker")
+      return []
+    }
 
-  if (error) {
-    console.error('Error fetching projects:', error);
-    return [];
+    const projects = result.response.data
+      .map((record: any) => ({
+        id: String(record.fieldData[PROJECT_FIELDS.ID] || record.recordId),
+        name: String(record.fieldData[PROJECT_FIELDS.NAME] || "Unnamed Project"),
+        status: String(record.fieldData[PROJECT_FIELDS.STATUS] || "Active"),
+      }))
+      .filter((p: any) => p.id && p.name)
+
+    return projects
+  } catch (error) {
+    console.error("[v0] Error fetching projects:", error)
+    return []
   }
-
-  return data;
 }
 
 export async function getTodayHours(employeeId: string): Promise<number> {
-  const supabase = await createClient();
+  try {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const todayFormatted = formatDateForFileMaker(today)
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+    const result = await fileMaker.findRecords(FILEMAKER_LAYOUTS.TIME_ENTRIES, [
+      {
+        [TIME_ENTRY_FIELDS.EMPLOYEE_ID]: employeeId,
+        [TIME_ENTRY_FIELDS.CLOCK_IN]: `>=${todayFormatted}`,
+      },
+    ])
 
-  const { data, error } = await supabase
-    .from('time_entries')
-    .select('hours_worked')
-    .eq('employee_id', employeeId)
-    .gte('clock_in', today.toISOString())
-    .not('hours_worked', 'is', null);
+    if (!result.response.data) {
+      return 0
+    }
 
-  if (error) {
-    console.error('Error fetching today hours:', error);
-    return 0;
+    let totalHours = 0
+    for (const record of result.response.data) {
+      const clockIn = parseDateFromFileMaker(record.fieldData[TIME_ENTRY_FIELDS.CLOCK_IN])
+      const clockOut = record.fieldData[TIME_ENTRY_FIELDS.CLOCK_OUT]
+        ? parseDateFromFileMaker(record.fieldData[TIME_ENTRY_FIELDS.CLOCK_OUT])
+        : new Date()
+
+      const hours = (clockOut.getTime() - clockIn.getTime()) / 3600000
+      totalHours += hours
+    }
+
+    return totalHours
+  } catch (error) {
+    console.error("[v0] Error fetching today hours:", error)
+    return 0
   }
+}
 
-  return data.reduce((sum, entry) => sum + (entry.hours_worked || 0), 0);
+export async function getActiveTimeEntries() {
+  try {
+    const result = await fileMaker.findRecords(FILEMAKER_LAYOUTS.TIME_ENTRIES, [
+      { [TIME_ENTRY_FIELDS.STATUS]: "clocked_in" },
+    ])
+
+    if (!result.response.data) {
+      return []
+    }
+
+    return result.response.data.map((record: any) => ({
+      id: record.recordId,
+      employee_id: record.fieldData[TIME_ENTRY_FIELDS.EMPLOYEE_ID],
+      employee_name: record.fieldData[TIME_ENTRY_FIELDS.EMPLOYEE_NAME],
+      project_id: record.fieldData[TIME_ENTRY_FIELDS.PROJECT_ID],
+      project_name: record.fieldData[TIME_ENTRY_FIELDS.PROJECT_NAME],
+      clock_in: record.fieldData[TIME_ENTRY_FIELDS.CLOCK_IN],
+      status: record.fieldData[TIME_ENTRY_FIELDS.STATUS],
+    }))
+  } catch (error) {
+    console.error("[v0] Error fetching active time entries:", error)
+    return []
+  }
 }
