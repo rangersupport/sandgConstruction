@@ -2,11 +2,11 @@ import { Badge } from "@/components/ui/badge"
 import { NewEmployeeDialog } from "@/components/employees/new-employee-dialog"
 import { getAllEmployeesFileMaker } from "@/lib/actions/filemaker-employee-actions"
 import { getAllEmployeesWithStatus } from "@/lib/actions/admin-actions"
-import { getAllProjects } from "@/lib/actions/project-actions"
+import { getActiveProjects } from "@/lib/actions/time-entry-actions"
 import { EmployeeListWithActions } from "@/components/employees/employee-list-with-actions"
 
 export default async function EmployeesPage() {
-  const [employeesWithStatus, projectsResult] = await Promise.all([getAllEmployeesWithStatus(), getAllProjects()])
+  const [employeesWithStatus, projectsResult] = await Promise.all([getAllEmployeesWithStatus(), getActiveProjects()])
 
   // Fallback to FileMaker employees if status fetch fails
   const fileMakerResult = await getAllEmployeesFileMaker()
