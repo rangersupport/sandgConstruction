@@ -1,5 +1,4 @@
 import { Badge } from "@/components/ui/badge"
-import { NewEmployeeDialog } from "@/components/employees/new-employee-dialog"
 import { getAllEmployeesFileMaker } from "@/lib/actions/filemaker-employee-actions"
 import { getAllEmployeesWithStatus } from "@/lib/actions/admin-actions"
 import { getActiveProjects } from "@/lib/actions/time-entry-actions"
@@ -40,7 +39,6 @@ export default async function EmployeesPage() {
           <Badge variant="secondary" className="gap-1">
             {availableCount} Available
           </Badge>
-          <NewEmployeeDialog />
         </div>
       </div>
 
