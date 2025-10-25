@@ -205,9 +205,8 @@ export function EmployeeListWithActions({ employees: initialEmployees, projects 
               <div className="flex gap-2 pt-2">
                 {employee.isClockedIn ? (
                   <Button
-                    variant="destructive"
                     size="sm"
-                    className="w-full"
+                    className="w-full bg-green-600 hover:bg-green-700 text-white"
                     onClick={() => {
                       setEmployeeToClockOut(employee)
                       setIsClockOutDialogOpen(true)
@@ -219,9 +218,8 @@ export function EmployeeListWithActions({ employees: initialEmployees, projects 
                   </Button>
                 ) : (
                   <Button
-                    variant="default"
                     size="sm"
-                    className="w-full"
+                    className="w-full bg-red-600 hover:bg-red-700 text-white"
                     onClick={() => {
                       setSelectedEmployee(employee)
                       setIsClockInDialogOpen(true)
