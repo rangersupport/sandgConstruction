@@ -31,7 +31,7 @@ export function formatDateForFileMaker(date: Date | string): string {
 }
 
 /**
- * Parses a FileMaker date string (MM/DD/YYYY HH:MM:SS AM/PM) back to a Date object
+ * Parses a FileMaker date string (MM/DD/YYYY HH:MM:SS AM/PM or MM/DD/YYYY HH:mm:ss) back to a Date object
  * Assumes the FileMaker date is in Eastern Time (America/New_York)
  */
 export function parseDateFromFileMaker(dateStr: string): Date {
@@ -42,7 +42,7 @@ export function parseDateFromFileMaker(dateStr: string): Date {
 
   // Parse the FileMaker format: "10/25/2025 02:36:17 PM" or "10/25/2025 14:36:17"
   const match12hr = dateStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})\s+(AM|PM)/i)
-  const match24hr = dateStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})/)
+  const match24hr = dateStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})$/)
 
   let month: string, day: string, year: string, hour24: number, minute: string, second: string
 
@@ -75,11 +75,7 @@ export function parseDateFromFileMaker(dateStr: string): Date {
     return new Date(dateStr)
   }
 
-  // Build an ISO string WITHOUT timezone indicator - this represents the ET time
-  const isoString = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}T${hour24.toString().padStart(2, "0")}:${minute}:${second}`
-
   // Determine if this date is in DST or EST
-  // Create a date object to check DST status for this specific date
   const testDate = new Date(`${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}T12:00:00Z`)
   const etString = testDate.toLocaleString("en-US", {
     timeZone: "America/New_York",
@@ -88,22 +84,32 @@ export function parseDateFromFileMaker(dateStr: string): Date {
   const isDST = etString.includes("EDT")
 
   // ET offset: EST = UTC-5, EDT = UTC-4
-  const etOffsetMinutes = isDST ? -240 : -300 // -4 hours or -5 hours in minutes
+  // To convert ET to UTC, we ADD the offset (in absolute value)
+  const etOffsetHours = isDST ? 4 : 5
 
-  // Create the date by treating the ISO string as if it were in ET
-  // We do this by creating a UTC date and then adjusting by the ET offset
-  const utcDate = new Date(`${isoString}Z`) // Parse as UTC first
-  const correctedDate = new Date(utcDate.getTime() - etOffsetMinutes * 60000) // Subtract ET offset to get actual UTC
+  // Build ISO string with ET offset
+  const offsetString = `-${etOffsetHours.toString().padStart(2, "0")}:00`
+  const isoString = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}T${hour24.toString().padStart(2, "0")}:${minute}:${second}${offsetString}`
+
+  const parsedDate = new Date(isoString)
 
   console.log("[v0] Date parsing:", {
     input: dateStr,
     isoString,
     isDST,
-    etOffsetMinutes,
-    utcDate: utcDate.toISOString(),
-    correctedDate: correctedDate.toISOString(),
-    localDisplay: correctedDate.toLocaleString("en-US", { timeZone: "America/New_York" }),
+    etOffsetHours,
+    parsedUTC: parsedDate.toISOString(),
+    displayET: parsedDate.toLocaleString("en-US", {
+      timeZone: "America/New_York",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    }),
   })
 
-  return correctedDate
+  return parsedDate
 }
