@@ -5,7 +5,6 @@
 export function formatDateForFileMaker(date: Date | string): string {
   const d = typeof date === "string" ? new Date(date) : date
 
-  // This prevents the 4-hour UTC offset issue
   const formatter = new Intl.DateTimeFormat("en-US", {
     year: "numeric",
     month: "2-digit",
@@ -14,7 +13,7 @@ export function formatDateForFileMaker(date: Date | string): string {
     minute: "2-digit",
     second: "2-digit",
     hour12: true,
-    timeZone: "America/New_York", // Force Eastern Time
+    timeZone: "America/New_York",
   })
 
   const parts = formatter.formatToParts(d)
@@ -40,11 +39,10 @@ export function parseDateFromFileMaker(dateStr: string): Date {
     return new Date()
   }
 
-  // Parse the FileMaker format: "10/25/2025 08:11:03 AM"
+  // Parse the FileMaker format: "10/25/2025 10:02:17 AM"
   const match = dateStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})\s+(AM|PM)/i)
 
   if (!match) {
-    // Fallback to standard parsing if format doesn't match
     console.warn("[v0] Unexpected FileMaker date format:", dateStr)
     return new Date(dateStr)
   }
@@ -59,16 +57,16 @@ export function parseDateFromFileMaker(dateStr: string): Date {
     hour24 = 0
   }
 
-  // Create date string in ISO format with Eastern timezone offset
-  // Eastern Time is UTC-5 (standard) or UTC-4 (daylight saving)
-  // We'll use a library approach to handle DST correctly
-  const dateString = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}T${hour24.toString().padStart(2, "0")}:${minute}:${second}`
+  // Create an ISO string and explicitly parse it as Eastern Time
+  // We use toLocaleString to convert from ET to local time properly
+  const etDateString = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}T${hour24.toString().padStart(2, "0")}:${minute}:${second}`
 
-  // Parse as if it's in Eastern Time by creating a date and adjusting for timezone
-  const date = new Date(dateString)
+  // Create a date object by parsing the string as if it's in Eastern Time
+  // We do this by creating a formatter that outputs in ET, then parsing back
+  const tempDate = new Date(etDateString + "Z") // Parse as UTC first
 
-  // Get the timezone offset for Eastern Time at this date
-  const formatter = new Intl.DateTimeFormat("en-US", {
+  // Get what this UTC time would be in Eastern Time
+  const etFormatter = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/New_York",
     year: "numeric",
     month: "2-digit",
@@ -79,16 +77,75 @@ export function parseDateFromFileMaker(dateStr: string): Date {
     hour12: false,
   })
 
-  // Create a reference date to calculate the offset
-  const now = new Date()
-  const etString = formatter.format(now)
-  const utcString = now.toISOString()
+  // Calculate the offset between ET and UTC for this specific date
+  const etParts = etFormatter.formatToParts(tempDate)
+  const getValue = (type: string) => etParts.find((p) => p.type === type)?.value || ""
 
-  // Calculate offset (this is approximate but works for our use case)
-  // Better approach: use the dateString to create a proper ET date
-  const etDate = new Date(
-    `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}T${hour24.toString().padStart(2, "0")}:${minute}:${second}-05:00`,
+  const etYear = getValue("year")
+  const etMonth = getValue("month")
+  const etDay = getValue("day")
+  const etHour = getValue("hour")
+  const etMinute = getValue("minute")
+  const etSecond = getValue("second")
+
+  // Now create the actual date by treating our input as ET
+  // We need to find what UTC time corresponds to our ET input
+  const targetEtString = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}T${hour24.toString().padStart(2, "0")}:${minute}:${second}`
+
+  // Use a simpler approach: create date in local time, then adjust
+  // Actually, let's use the en-US locale with ET timezone to parse correctly
+  const dateInET = new Date(targetEtString)
+
+  // Get the timezone offset for ET (in minutes)
+  // ET is UTC-5 (EST) or UTC-4 (EDT)
+  // We need to determine if DST is in effect for this date
+  const jan = new Date(Number.parseInt(year), 0, 1)
+  const jul = new Date(Number.parseInt(year), 6, 1)
+  const stdOffset = Math.max(jan.getTimezoneOffset(), jul.getTimezoneOffset())
+
+  // For Eastern Time: EST is UTC-5 (-300 minutes), EDT is UTC-4 (-240 minutes)
+  // But we need to calculate from the perspective of ET, not local time
+  // Simpler approach: just add 5 hours (or 4 during DST) to convert ET to UTC
+
+  // Create the date assuming it's in local timezone, then adjust
+  const localDate = new Date(
+    `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}T${hour24.toString().padStart(2, "0")}:${minute}:${second}`,
   )
 
-  return etDate
+  // Get local timezone offset
+  const localOffset = localDate.getTimezoneOffset() // in minutes, negative for ahead of UTC
+
+  // ET offset (EST = -300, EDT = -240)
+  // Determine if DST is in effect for this date in ET
+  const testDate = new Date(
+    Date.UTC(
+      Number.parseInt(year),
+      Number.parseInt(month) - 1,
+      Number.parseInt(day),
+      hour24,
+      Number.parseInt(minute),
+      Number.parseInt(second),
+    ),
+  )
+  const etTestString = testDate.toLocaleString("en-US", { timeZone: "America/New_York" })
+  const isDST = testDate
+    .toLocaleString("en-US", { timeZone: "America/New_York", timeZoneName: "short" })
+    .includes("EDT")
+
+  const etOffset = isDST ? -240 : -300 // EDT or EST in minutes
+
+  // Adjust: we have a date in local time, but it should be interpreted as ET
+  // So we need to shift it by (localOffset - etOffset)
+  const offsetDiff = localOffset - etOffset
+  const correctedDate = new Date(localDate.getTime() - offsetDiff * 60000)
+
+  console.log("[v0] Date parsing:", {
+    input: dateStr,
+    parsed: correctedDate.toISOString(),
+    localOffset,
+    etOffset,
+    isDST,
+  })
+
+  return correctedDate
 }

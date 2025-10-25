@@ -1,6 +1,9 @@
 "use server"
 
-import { createClient } from "@/lib/supabase/server"
+import { fileMaker } from "@/lib/filemaker/client"
+import { FILEMAKER_LAYOUTS, TIME_ENTRY_FIELDS, EMPLOYEE_FIELDS, PROJECT_FIELDS } from "@/lib/filemaker/config"
+import { formatDateForFileMaker, parseDateFromFileMaker } from "@/lib/filemaker/utils"
+import { revalidatePath } from "next/cache"
 
 export interface AutoClockoutReport {
   id: string
@@ -28,164 +31,26 @@ export interface LocationComplianceReport {
   project_lng: number
 }
 
-export async function getAutoClockoutReports(startDate?: string, endDate?: string): Promise<AutoClockoutReport[]> {
-  const supabase = await createClient()
-
-  let query = supabase
-    .from("time_entries")
-    .select(
-      `
-      id,
-      clock_in,
-      clock_out,
-      hours_worked,
-      reminder_sent_at,
-      distance_from_project,
-      location_verified,
-      employee:employees(name),
-      project:projects(name),
-      reminder:clock_reminders(auto_clockout_at)
-    `,
-    )
-    .eq("is_auto_clocked_out", true)
-    .order("clock_out", { ascending: false })
-
-  if (startDate) {
-    query = query.gte("clock_out", startDate)
-  }
-
-  if (endDate) {
-    query = query.lte("clock_out", endDate)
-  }
-
-  const { data, error } = await query
-
-  if (error) {
-    console.error("[v0] Error fetching auto clock-out reports:", error)
-    return []
-  }
-
-  return (
-    data?.map((entry: any) => ({
-      id: entry.id,
-      employee_name: entry.employee?.name || "Unknown",
-      project_name: entry.project?.name || "Unknown",
-      clock_in: entry.clock_in,
-      clock_out: entry.clock_out,
-      hours_worked: entry.hours_worked || 0,
-      reminder_sent_at: entry.reminder_sent_at,
-      auto_clockout_at: entry.reminder?.[0]?.auto_clockout_at || entry.clock_out,
-      distance_from_project: entry.distance_from_project || 0,
-      location_verified: entry.location_verified || false,
-    })) || []
-  )
-}
-
-export async function getLocationComplianceReports(
-  startDate?: string,
-  endDate?: string,
-): Promise<LocationComplianceReport[]> {
-  const supabase = await createClient()
-
-  let query = supabase
-    .from("time_entries")
-    .select(
-      `
-      id,
-      clock_in,
-      distance_from_project,
-      location_verified,
-      clock_in_lat,
-      clock_in_lng,
-      employee:employees(name),
-      project:projects(name, latitude, longitude)
-    `,
-    )
-    .not("clock_in_lat", "is", null)
-    .not("clock_in_lng", "is", null)
-    .order("clock_in", { ascending: false })
-
-  if (startDate) {
-    query = query.gte("clock_in", startDate)
-  }
-
-  if (endDate) {
-    query = query.lte("clock_in", endDate)
-  }
-
-  const { data, error } = await query
-
-  if (error) {
-    console.error("[v0] Error fetching location compliance reports:", error)
-    return []
-  }
-
-  return (
-    data?.map((entry: any) => ({
-      id: entry.id,
-      employee_name: entry.employee?.name || "Unknown",
-      project_name: entry.project?.name || "Unknown",
-      clock_in: entry.clock_in,
-      distance_from_project: entry.distance_from_project || 0,
-      location_verified: entry.location_verified || false,
-      clock_in_lat: entry.clock_in_lat,
-      clock_in_lng: entry.clock_in_lng,
-      project_lat: entry.project?.latitude,
-      project_lng: entry.project?.longitude,
-    })) || []
-  )
-}
-
-export async function getAutoClockoutStats(startDate?: string, endDate?: string) {
-  const reports = await getAutoClockoutReports(startDate, endDate)
-
-  return {
-    total: reports.length,
-    totalHours: reports.reduce((sum, r) => sum + r.hours_worked, 0),
-    averageHours: reports.length > 0 ? reports.reduce((sum, r) => sum + r.hours_worked, 0) / reports.length : 0,
-    locationVerified: reports.filter((r) => r.location_verified).length,
-    locationUnverified: reports.filter((r) => !r.location_verified).length,
-  }
-}
-
-export async function getLocationComplianceStats(startDate?: string, endDate?: string) {
-  const reports = await getLocationComplianceReports(startDate, endDate)
-
-  return {
-    total: reports.length,
-    verified: reports.filter((r) => r.location_verified).length,
-    unverified: reports.filter((r) => !r.location_verified).length,
-    complianceRate: reports.length > 0 ? (reports.filter((r) => r.location_verified).length / reports.length) * 100 : 0,
-    averageDistance:
-      reports.length > 0 ? reports.reduce((sum, r) => sum + r.distance_from_project, 0) / reports.length : 0,
-  }
-}
-
 export async function adminClockOut(timeEntryId: string): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient()
+  try {
+    const clockOutTime = new Date()
+    const clockOutTimeFormatted = formatDateForFileMaker(clockOutTime)
 
-  const clockOutTime = new Date().toISOString()
-
-  const { data: timeEntry, error } = await supabase
-    .from("time_entries")
-    .update({
-      clock_out: clockOutTime,
-      status: "clocked_out",
+    await fileMaker.updateRecord(FILEMAKER_LAYOUTS.TIME_ENTRIES, timeEntryId, {
+      [TIME_ENTRY_FIELDS.CLOCK_OUT]: clockOutTimeFormatted,
+      [TIME_ENTRY_FIELDS.STATUS]: "clocked_out",
     })
-    .eq("id", timeEntryId)
-    .select()
-    .single()
 
-  if (error) {
+    revalidatePath("/map")
+    revalidatePath("/dashboard")
+
+    return { success: true }
+  } catch (error) {
     console.error("[v0] Error clocking out employee:", error)
     return {
       success: false,
-      error: error.message,
+      error: error instanceof Error ? error.message : "Failed to clock out",
     }
-  }
-
-  return {
-    success: true,
   }
 }
 
@@ -196,94 +61,133 @@ export async function adminClockIn(
   longitude?: number,
   notes?: string,
 ): Promise<{ success: boolean; error?: string; timeEntryId?: string }> {
-  const supabase = await createClient()
+  try {
+    const existingResult = await fileMaker.findRecords(FILEMAKER_LAYOUTS.TIME_ENTRIES, [
+      {
+        [TIME_ENTRY_FIELDS.EMPLOYEE_ID]: employeeId,
+        [TIME_ENTRY_FIELDS.STATUS]: "clocked_in",
+      },
+    ])
 
-  // Check if employee is already clocked in
-  const { data: existingEntry } = await supabase
-    .from("time_entries")
-    .select("id")
-    .eq("employee_id", employeeId)
-    .eq("status", "clocked_in")
-    .single()
-
-  if (existingEntry) {
-    return {
-      success: false,
-      error: "Employee is already clocked in",
+    if (existingResult.response.data && existingResult.response.data.length > 0) {
+      return {
+        success: false,
+        error: "Employee is already clocked in",
+      }
     }
-  }
 
-  const clockInTime = new Date().toISOString()
+    // Get employee name
+    const employeeResult = await fileMaker.findRecords(FILEMAKER_LAYOUTS.EMPLOYEES, [
+      { [EMPLOYEE_FIELDS.EMPLOYEE_LOGIN_NUMBER]: employeeId },
+    ])
 
-  const { data: timeEntry, error } = await supabase
-    .from("time_entries")
-    .insert({
-      employee_id: employeeId,
-      project_id: projectId,
-      clock_in: clockInTime,
-      status: "clocked_in",
-      clock_in_lat: latitude,
-      clock_in_lng: longitude,
-      notes: notes || "Manually clocked in by admin",
+    if (!employeeResult.response.data || employeeResult.response.data.length === 0) {
+      return {
+        success: false,
+        error: "Employee not found",
+      }
+    }
+
+    const employeeName = `${employeeResult.response.data[0].fieldData[EMPLOYEE_FIELDS.FIRST_NAME]} ${employeeResult.response.data[0].fieldData[EMPLOYEE_FIELDS.LAST_NAME]}`
+
+    // Get project name
+    const projectResult = await fileMaker.findRecords(FILEMAKER_LAYOUTS.PROJECTS, [{ [PROJECT_FIELDS.ID]: projectId }])
+
+    const projectName =
+      projectResult.response.data && projectResult.response.data.length > 0
+        ? projectResult.response.data[0].fieldData[PROJECT_FIELDS.NAME]
+        : "Unknown Project"
+
+    const clockInTime = new Date()
+    const clockInTimeFormatted = formatDateForFileMaker(clockInTime)
+
+    const result = await fileMaker.createRecord(FILEMAKER_LAYOUTS.TIME_ENTRIES, {
+      [TIME_ENTRY_FIELDS.EMPLOYEE_ID]: employeeId,
+      [TIME_ENTRY_FIELDS.EMPLOYEE_NAME]: employeeName,
+      [TIME_ENTRY_FIELDS.PROJECT_ID]: projectId,
+      [TIME_ENTRY_FIELDS.PROJECT_NAME]: projectName,
+      [TIME_ENTRY_FIELDS.CLOCK_IN]: clockInTimeFormatted,
+      [TIME_ENTRY_FIELDS.STATUS]: "clocked_in",
+      [TIME_ENTRY_FIELDS.CLOCK_IN_LAT]: latitude,
+      [TIME_ENTRY_FIELDS.CLOCK_IN_LNG]: longitude,
+      [TIME_ENTRY_FIELDS.NOTES]: notes || "Manually clocked in by admin",
     })
-    .select()
-    .single()
 
-  if (error) {
+    revalidatePath("/map")
+    revalidatePath("/dashboard")
+
+    return {
+      success: true,
+      timeEntryId: result.response.recordId,
+    }
+  } catch (error) {
     console.error("[v0] Error manually clocking in employee:", error)
     return {
       success: false,
-      error: error.message,
+      error: error instanceof Error ? error.message : "Failed to clock in",
     }
-  }
-
-  return {
-    success: true,
-    timeEntryId: timeEntry.id,
   }
 }
 
 export async function getAllEmployeesWithStatus() {
-  const supabase = await createClient()
+  try {
+    const employeesResult = await fileMaker.findRecords(FILEMAKER_LAYOUTS.EMPLOYEES, [
+      { [EMPLOYEE_FIELDS.STATUS]: "Active" },
+    ])
 
-  const { data: employees, error: employeesError } = await supabase
-    .from("employees")
-    .select("id, name, email, phone, role, status")
-    .eq("status", "active")
-    .order("name")
+    if (!employeesResult.response.data) {
+      return []
+    }
 
-  if (employeesError) {
-    console.error("[v0] Error fetching employees:", employeesError)
+    // Get current clock-in status for each employee
+    const employeesWithStatus = await Promise.all(
+      employeesResult.response.data.map(async (record: any) => {
+        const employeeId = record.fieldData[EMPLOYEE_FIELDS.EMPLOYEE_LOGIN_NUMBER]
+        const firstName = record.fieldData[EMPLOYEE_FIELDS.FIRST_NAME] || ""
+        const lastName = record.fieldData[EMPLOYEE_FIELDS.LAST_NAME] || ""
+        const name = `${firstName} ${lastName}`.trim()
+
+        // Check if employee is clocked in
+        const timeEntryResult = await fileMaker.findRecords(FILEMAKER_LAYOUTS.TIME_ENTRIES, [
+          {
+            [TIME_ENTRY_FIELDS.EMPLOYEE_ID]: employeeId,
+            [TIME_ENTRY_FIELDS.STATUS]: "clocked_in",
+          },
+        ])
+
+        let currentTimeEntry = null
+        if (timeEntryResult.response.data && timeEntryResult.response.data.length > 0) {
+          const entry = timeEntryResult.response.data[0]
+          currentTimeEntry = {
+            id: entry.recordId,
+            clock_in: parseDateFromFileMaker(entry.fieldData[TIME_ENTRY_FIELDS.CLOCK_IN]).toISOString(),
+            clock_in_lat: entry.fieldData[TIME_ENTRY_FIELDS.CLOCK_IN_LAT],
+            clock_in_lng: entry.fieldData[TIME_ENTRY_FIELDS.CLOCK_IN_LNG],
+            project: {
+              id: entry.fieldData[TIME_ENTRY_FIELDS.PROJECT_ID],
+              name: entry.fieldData[TIME_ENTRY_FIELDS.PROJECT_NAME],
+            },
+          }
+        }
+
+        return {
+          id: employeeId,
+          name,
+          email: record.fieldData[EMPLOYEE_FIELDS.EMAIL],
+          phone: record.fieldData[EMPLOYEE_FIELDS.PHONE],
+          role: record.fieldData[EMPLOYEE_FIELDS.WEB_ADMIN_ROLE],
+          status: record.fieldData[EMPLOYEE_FIELDS.STATUS],
+          isClockedIn: !!currentTimeEntry,
+          currentTimeEntry,
+        }
+      }),
+    )
+
+    return employeesWithStatus
+  } catch (error) {
+    console.error("[v0] Error fetching employees with status:", error)
     return []
   }
-
-  // Get current clock-in status for each employee
-  const employeesWithStatus = await Promise.all(
-    employees.map(async (employee) => {
-      const { data: timeEntry } = await supabase
-        .from("time_entries")
-        .select(
-          `
-          id,
-          clock_in,
-          clock_in_lat,
-          clock_in_lng,
-          project:projects(id, name, address)
-        `,
-        )
-        .eq("employee_id", employee.id)
-        .eq("status", "clocked_in")
-        .single()
-
-      return {
-        ...employee,
-        currentTimeEntry: timeEntry || null,
-        isClockedIn: !!timeEntry,
-      }
-    }),
-  )
-
-  return employeesWithStatus
 }
 
 export async function adminEditTimeEntry(
@@ -294,19 +198,33 @@ export async function adminEditTimeEntry(
     notes?: string
   },
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient()
+  try {
+    const fileMakerUpdates: any = {}
 
-  const { error } = await supabase.from("time_entries").update(updates).eq("id", timeEntryId)
+    if (updates.clock_in) {
+      fileMakerUpdates[TIME_ENTRY_FIELDS.CLOCK_IN] = formatDateForFileMaker(new Date(updates.clock_in))
+    }
 
-  if (error) {
+    if (updates.clock_out) {
+      fileMakerUpdates[TIME_ENTRY_FIELDS.CLOCK_OUT] = formatDateForFileMaker(new Date(updates.clock_out))
+      fileMakerUpdates[TIME_ENTRY_FIELDS.STATUS] = "clocked_out"
+    }
+
+    if (updates.notes) {
+      fileMakerUpdates[TIME_ENTRY_FIELDS.NOTES] = updates.notes
+    }
+
+    await fileMaker.updateRecord(FILEMAKER_LAYOUTS.TIME_ENTRIES, timeEntryId, fileMakerUpdates)
+
+    revalidatePath("/map")
+    revalidatePath("/dashboard")
+
+    return { success: true }
+  } catch (error) {
     console.error("[v0] Error editing time entry:", error)
     return {
       success: false,
-      error: error.message,
+      error: error instanceof Error ? error.message : "Failed to update time entry",
     }
-  }
-
-  return {
-    success: true,
   }
 }
