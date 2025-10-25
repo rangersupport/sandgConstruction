@@ -4,7 +4,7 @@ import { fileMaker } from "@/lib/filemaker/client"
 import { revalidatePath } from "next/cache"
 import type { EmployeeStatus } from "@/lib/types/database"
 import { FILEMAKER_LAYOUTS, TIME_ENTRY_FIELDS, PROJECT_FIELDS, EMPLOYEE_FIELDS } from "@/lib/filemaker/config"
-import { formatDateForFileMaker } from "@/lib/filemaker/utils"
+import { formatDateForFileMaker, parseDateFromFileMaker } from "@/lib/filemaker/utils"
 
 interface ClockInData {
   employeeId: string
@@ -61,8 +61,14 @@ export async function getEmployeeStatus(employeeId: string): Promise<EmployeeSta
 
     const record = result.response.data[0]
     const clockInStr = record.fieldData[TIME_ENTRY_FIELDS.CLOCK_IN]
-    const clockInDate = new Date(clockInStr)
+    const clockInDate = parseDateFromFileMaker(clockInStr)
     const hoursElapsed = (Date.now() - clockInDate.getTime()) / 3600000
+
+    console.log("[v0] Clock-in parsing:", {
+      fileMakerString: clockInStr,
+      parsedDate: clockInDate.toISOString(),
+      hoursElapsed: hoursElapsed.toFixed(2),
+    })
 
     return {
       is_clocked_in: true,
@@ -235,9 +241,9 @@ export async function getTodayHours(employeeId: string): Promise<number> {
 
     let totalHours = 0
     for (const record of result.response.data) {
-      const clockIn = new Date(record.fieldData[TIME_ENTRY_FIELDS.CLOCK_IN])
+      const clockIn = parseDateFromFileMaker(record.fieldData[TIME_ENTRY_FIELDS.CLOCK_IN])
       const clockOut = record.fieldData[TIME_ENTRY_FIELDS.CLOCK_OUT]
-        ? new Date(record.fieldData[TIME_ENTRY_FIELDS.CLOCK_OUT])
+        ? parseDateFromFileMaker(record.fieldData[TIME_ENTRY_FIELDS.CLOCK_OUT])
         : new Date()
 
       const hours = (clockOut.getTime() - clockIn.getTime()) / 3600000
