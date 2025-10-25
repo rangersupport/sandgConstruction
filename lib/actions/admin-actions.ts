@@ -143,14 +143,16 @@ export async function getAllEmployeesWithStatus() {
     // Get current clock-in status for each employee
     const employeesWithStatus = await Promise.all(
       employeesResult.response.data.map(async (record: any) => {
-        const employeeId = record.fieldData[EMPLOYEE_FIELDS.EMPLOYEE_LOGIN_NUMBER]
-        const firstName = record.fieldData[EMPLOYEE_FIELDS.FIRST_NAME] || ""
-        const lastName = record.fieldData[EMPLOYEE_FIELDS.LAST_NAME] || ""
+        const employeeId =
+          record.fieldData[EMPLOYEE_FIELDS.EMPLOYEE_LOGIN_NUMBER] || record.fieldData[EMPLOYEE_FIELDS.ID]
+        const firstName = record.fieldData[EMPLOYEE_FIELDS.NAME_FIRST] || ""
+        const lastName = record.fieldData[EMPLOYEE_FIELDS.NAME_LAST] || ""
         const name = `${firstName} ${lastName}`.trim()
         const status = record.fieldData[EMPLOYEE_FIELDS.STATUS]
 
         // Skip if no employee ID or name
         if (!employeeId || !name) {
+          console.log("[v0] Skipping employee - missing ID or name:", { employeeId, name, firstName, lastName })
           return null
         }
 
@@ -184,9 +186,12 @@ export async function getAllEmployeesWithStatus() {
             id: employeeId,
             name,
             email: record.fieldData[EMPLOYEE_FIELDS.EMAIL],
-            phone: record.fieldData[EMPLOYEE_FIELDS.PHONE],
-            role: record.fieldData[EMPLOYEE_FIELDS.WEB_ADMIN_ROLE],
+            phone: record.fieldData[EMPLOYEE_FIELDS.PHONE1],
+            cell: record.fieldData[EMPLOYEE_FIELDS.CELL],
+            role: record.fieldData[EMPLOYEE_FIELDS.CATEGORY],
             status,
+            hourly_wage: record.fieldData[EMPLOYEE_FIELDS.HOURLY_RATE],
+            department: record.fieldData[EMPLOYEE_FIELDS.DEPARTMENT],
             isClockedIn: !!currentTimeEntry,
             currentTimeEntry,
           }
@@ -196,9 +201,12 @@ export async function getAllEmployeesWithStatus() {
             id: employeeId,
             name,
             email: record.fieldData[EMPLOYEE_FIELDS.EMAIL],
-            phone: record.fieldData[EMPLOYEE_FIELDS.PHONE],
-            role: record.fieldData[EMPLOYEE_FIELDS.WEB_ADMIN_ROLE],
+            phone: record.fieldData[EMPLOYEE_FIELDS.PHONE1],
+            cell: record.fieldData[EMPLOYEE_FIELDS.CELL],
+            role: record.fieldData[EMPLOYEE_FIELDS.CATEGORY],
             status,
+            hourly_wage: record.fieldData[EMPLOYEE_FIELDS.HOURLY_RATE],
+            department: record.fieldData[EMPLOYEE_FIELDS.DEPARTMENT],
             isClockedIn: false,
             currentTimeEntry: null,
           }
