@@ -2,13 +2,22 @@ import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 import { supabaseConfig } from "./config"
 
+function isValidHttpUrl(string: string): boolean {
+  if (!string || string.trim() === "") return false
+  try {
+    const url = new URL(string)
+    return url.protocol === "http:" || url.protocol === "https:"
+  } catch (_) {
+    return false
+  }
+}
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
   })
 
-  if (!supabaseConfig.url || !supabaseConfig.anonKey) {
-    console.log("[v0] Supabase not configured, skipping auth middleware")
+  if (!isValidHttpUrl(supabaseConfig.url) || !supabaseConfig.anonKey || supabaseConfig.anonKey.trim() === "") {
     return supabaseResponse
   }
 

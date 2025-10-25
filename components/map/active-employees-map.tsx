@@ -7,8 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Loader2, MapPin, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
-
-mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || ""
+import { getMapboxToken } from "@/lib/actions/map-actions"
 
 interface ActiveLocation {
   id: string
@@ -37,6 +36,7 @@ export function ActiveEmployeesMap() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date())
+  const [mapboxToken, setMapboxToken] = useState<string>("")
 
   async function fetchLocations() {
     try {
@@ -54,25 +54,33 @@ export function ActiveEmployeesMap() {
   }
 
   useEffect(() => {
-    if (!mapContainer.current) return
+    async function initializeMap() {
+      const token = await getMapboxToken()
+      setMapboxToken(token)
+      mapboxgl.accessToken = token
 
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: "mapbox://styles/mapbox/streets-v12",
-      center: [-82.4572, 27.9506], // Florida center
-      zoom: 8,
-    })
+      if (!mapContainer.current || !token) return
 
-    map.current.addControl(new mapboxgl.NavigationControl(), "top-right")
+      map.current = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: "mapbox://styles/mapbox/streets-v12",
+        center: [-82.4572, 27.9506], // Florida center
+        zoom: 8,
+      })
 
-    fetchLocations()
+      map.current.addControl(new mapboxgl.NavigationControl(), "top-right")
 
-    const interval = setInterval(fetchLocations, 30000)
+      fetchLocations()
 
-    return () => {
-      clearInterval(interval)
-      map.current?.remove()
+      const interval = setInterval(fetchLocations, 30000)
+
+      return () => {
+        clearInterval(interval)
+        map.current?.remove()
+      }
     }
+
+    initializeMap()
   }, [])
 
   useEffect(() => {

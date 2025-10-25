@@ -188,3 +188,125 @@ export async function adminClockOut(timeEntryId: string): Promise<{ success: boo
     success: true,
   }
 }
+
+export async function adminClockIn(
+  employeeId: string,
+  projectId: string,
+  latitude?: number,
+  longitude?: number,
+  notes?: string,
+): Promise<{ success: boolean; error?: string; timeEntryId?: string }> {
+  const supabase = await createClient()
+
+  // Check if employee is already clocked in
+  const { data: existingEntry } = await supabase
+    .from("time_entries")
+    .select("id")
+    .eq("employee_id", employeeId)
+    .eq("status", "clocked_in")
+    .single()
+
+  if (existingEntry) {
+    return {
+      success: false,
+      error: "Employee is already clocked in",
+    }
+  }
+
+  const clockInTime = new Date().toISOString()
+
+  const { data: timeEntry, error } = await supabase
+    .from("time_entries")
+    .insert({
+      employee_id: employeeId,
+      project_id: projectId,
+      clock_in: clockInTime,
+      status: "clocked_in",
+      clock_in_lat: latitude,
+      clock_in_lng: longitude,
+      notes: notes || "Manually clocked in by admin",
+    })
+    .select()
+    .single()
+
+  if (error) {
+    console.error("[v0] Error manually clocking in employee:", error)
+    return {
+      success: false,
+      error: error.message,
+    }
+  }
+
+  return {
+    success: true,
+    timeEntryId: timeEntry.id,
+  }
+}
+
+export async function getAllEmployeesWithStatus() {
+  const supabase = await createClient()
+
+  const { data: employees, error: employeesError } = await supabase
+    .from("employees")
+    .select("id, name, email, phone, role, status")
+    .eq("status", "active")
+    .order("name")
+
+  if (employeesError) {
+    console.error("[v0] Error fetching employees:", employeesError)
+    return []
+  }
+
+  // Get current clock-in status for each employee
+  const employeesWithStatus = await Promise.all(
+    employees.map(async (employee) => {
+      const { data: timeEntry } = await supabase
+        .from("time_entries")
+        .select(
+          `
+          id,
+          clock_in,
+          clock_in_lat,
+          clock_in_lng,
+          project:projects(id, name, address)
+        `,
+        )
+        .eq("employee_id", employee.id)
+        .eq("status", "clocked_in")
+        .single()
+
+      return {
+        ...employee,
+        currentTimeEntry: timeEntry || null,
+        isClockedIn: !!timeEntry,
+      }
+    }),
+  )
+
+  return employeesWithStatus
+}
+
+export async function adminEditTimeEntry(
+  timeEntryId: string,
+  updates: {
+    clock_in?: string
+    clock_out?: string
+    notes?: string
+  },
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient()
+
+  const { error } = await supabase.from("time_entries").update(updates).eq("id", timeEntryId)
+
+  if (error) {
+    console.error("[v0] Error editing time entry:", error)
+    return {
+      success: false,
+      error: error.message,
+    }
+  }
+
+  return {
+    success: true,
+  }
+}
