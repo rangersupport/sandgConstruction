@@ -189,65 +189,81 @@ export async function getAllEmployeesWithStatus() {
           hasNameLast: !!fieldData[EMPLOYEE_FIELDS.NAME_LAST],
         })
 
-        // Check if employee is clocked in
+        let currentTimeEntry = null
         try {
-          const timeEntryResult = await fileMaker.findRecords(FILEMAKER_LAYOUTS.TIME_ENTRIES, [
+          // Try to find time entry using all possible employee ID fields
+          const possibleIds = [
+            fieldData[EMPLOYEE_FIELDS.EMPLOYEE_LOGIN_NUMBER],
+            fieldData[EMPLOYEE_FIELDS.ID],
+            fieldData["ID_staff"],
+            record.recordId,
+            name, // Also try matching by name
+          ].filter(Boolean)
+
+          console.log("[v0] Checking clock-in status for employee:", name, "with IDs:", possibleIds)
+
+          // Get all active time entries and check if any match this employee
+          const allActiveEntries = await fileMaker.findRecords(FILEMAKER_LAYOUTS.TIME_ENTRIES, [
             {
-              [TIME_ENTRY_FIELDS.EMPLOYEE_ID]: employeeId,
               [TIME_ENTRY_FIELDS.STATUS]: "clocked_in",
             },
           ])
 
-          let currentTimeEntry = null
-          if (timeEntryResult.response.data && timeEntryResult.response.data.length > 0) {
-            const entry = timeEntryResult.response.data[0]
-            const clockInParsed = parseDateFromFileMaker(entry.fieldData[TIME_ENTRY_FIELDS.CLOCK_IN])
+          if (allActiveEntries.response.data && allActiveEntries.response.data.length > 0) {
+            // Find entry that matches any of the possible employee IDs or name
+            const matchingEntry = allActiveEntries.response.data.find((entry: any) => {
+              const entryEmployeeId = entry.fieldData[TIME_ENTRY_FIELDS.EMPLOYEE_ID]
+              const entryEmployeeName = entry.fieldData[TIME_ENTRY_FIELDS.EMPLOYEE_NAME]
 
-            currentTimeEntry = {
-              id: entry.recordId,
-              clock_in: clockInParsed.toISOString(),
-              clock_in_lat: entry.fieldData[TIME_ENTRY_FIELDS.CLOCK_IN_LAT],
-              clock_in_lng: entry.fieldData[TIME_ENTRY_FIELDS.CLOCK_IN_LNG],
-              project: {
-                id: entry.fieldData[TIME_ENTRY_FIELDS.PROJECT_ID],
-                name: entry.fieldData[TIME_ENTRY_FIELDS.PROJECT_NAME],
-              },
+              return possibleIds.some(
+                (id) =>
+                  String(id).toLowerCase() === String(entryEmployeeId).toLowerCase() ||
+                  String(id).toLowerCase() === String(entryEmployeeName).toLowerCase(),
+              )
+            })
+
+            if (matchingEntry) {
+              const clockInParsed = parseDateFromFileMaker(matchingEntry.fieldData[TIME_ENTRY_FIELDS.CLOCK_IN])
+
+              currentTimeEntry = {
+                id: matchingEntry.recordId,
+                clock_in: clockInParsed.toISOString(),
+                clock_in_lat: matchingEntry.fieldData[TIME_ENTRY_FIELDS.CLOCK_IN_LAT],
+                clock_in_lng: matchingEntry.fieldData[TIME_ENTRY_FIELDS.CLOCK_IN_LNG],
+                project: {
+                  id: matchingEntry.fieldData[TIME_ENTRY_FIELDS.PROJECT_ID],
+                  name: matchingEntry.fieldData[TIME_ENTRY_FIELDS.PROJECT_NAME],
+                },
+              }
+
+              console.log("[v0] Found active time entry for:", name, "- Project:", currentTimeEntry.project.name)
             }
           }
-
-          return {
-            id: employeeId,
-            name,
-            email: fieldData[EMPLOYEE_FIELDS.EMAIL] || fieldData["Email"],
-            phone: fieldData[EMPLOYEE_FIELDS.PHONE1] || fieldData["Phone1"],
-            cell: fieldData[EMPLOYEE_FIELDS.CELL] || fieldData["Cell"],
-            role: fieldData[EMPLOYEE_FIELDS.CATEGORY] || fieldData["Category"] || "worker",
-            status,
-            hourly_wage: fieldData[EMPLOYEE_FIELDS.HOURLY_RATE] || fieldData["Hourly_rate"],
-            department: fieldData[EMPLOYEE_FIELDS.DEPARTMENT] || fieldData["Department"],
-            isClockedIn: !!currentTimeEntry,
-            currentTimeEntry,
-          }
         } catch (error) {
-          console.error(`[v0] Error fetching time entry for employee ${employeeId}:`, error)
-          return {
-            id: employeeId,
-            name,
-            email: fieldData[EMPLOYEE_FIELDS.EMAIL] || fieldData["Email"],
-            phone: fieldData[EMPLOYEE_FIELDS.PHONE1] || fieldData["Phone1"],
-            cell: fieldData[EMPLOYEE_FIELDS.CELL] || fieldData["Cell"],
-            role: fieldData[EMPLOYEE_FIELDS.CATEGORY] || fieldData["Category"] || "worker",
-            status,
-            hourly_wage: fieldData[EMPLOYEE_FIELDS.HOURLY_RATE] || fieldData["Hourly_rate"],
-            department: fieldData[EMPLOYEE_FIELDS.DEPARTMENT] || fieldData["Department"],
-            isClockedIn: false,
-            currentTimeEntry: null,
-          }
+          console.error(`[v0] Error fetching time entry for employee ${name}:`, error)
+        }
+
+        return {
+          id: employeeId,
+          name,
+          email: fieldData[EMPLOYEE_FIELDS.EMAIL] || fieldData["Email"],
+          phone: fieldData[EMPLOYEE_FIELDS.PHONE1] || fieldData["Phone1"],
+          cell: fieldData[EMPLOYEE_FIELDS.CELL] || fieldData["Cell"],
+          role: fieldData[EMPLOYEE_FIELDS.CATEGORY] || fieldData["Category"] || "worker",
+          status,
+          hourly_wage: fieldData[EMPLOYEE_FIELDS.HOURLY_RATE] || fieldData["Hourly_rate"],
+          department: fieldData[EMPLOYEE_FIELDS.DEPARTMENT] || fieldData["Department"],
+          isClockedIn: !!currentTimeEntry,
+          currentTimeEntry,
         }
       }),
     )
 
     console.log("[v0] Returning", employeesWithStatus.length, "employees with status")
+    console.log(
+      "[v0] Clocked in employees:",
+      employeesWithStatus.filter((e) => e.isClockedIn).map((e) => e.name),
+    )
     return employeesWithStatus
   } catch (error) {
     console.error("[v0] Error fetching employees with status:", error)
