@@ -140,19 +140,35 @@ export async function getAllEmployeesWithStatus() {
 
     console.log("[v0] Found", employeesResult.response.data.length, "employees in FileMaker")
 
+    if (employeesResult.response.data.length > 0) {
+      console.log("[v0] Sample employee data:", JSON.stringify(employeesResult.response.data[0].fieldData, null, 2))
+    }
+
     // Get current clock-in status for each employee
     const employeesWithStatus = await Promise.all(
       employeesResult.response.data.map(async (record: any) => {
         const employeeId =
-          record.fieldData[EMPLOYEE_FIELDS.EMPLOYEE_LOGIN_NUMBER] || record.fieldData[EMPLOYEE_FIELDS.ID]
-        const firstName = record.fieldData[EMPLOYEE_FIELDS.NAME_FIRST] || ""
-        const lastName = record.fieldData[EMPLOYEE_FIELDS.NAME_LAST] || ""
-        const name = `${firstName} ${lastName}`.trim()
+          record.fieldData[EMPLOYEE_FIELDS.EMPLOYEE_LOGIN_NUMBER] ||
+          record.fieldData[EMPLOYEE_FIELDS.ID] ||
+          record.recordId
+
+        // Try to get full name first, then fall back to combining first and last
+        let name = record.fieldData[EMPLOYEE_FIELDS.NAME_FULL]
+        if (!name) {
+          const firstName = record.fieldData[EMPLOYEE_FIELDS.NAME_FIRST] || ""
+          const lastName = record.fieldData[EMPLOYEE_FIELDS.NAME_LAST] || ""
+          name = `${firstName} ${lastName}`.trim()
+        }
+
         const status = record.fieldData[EMPLOYEE_FIELDS.STATUS]
 
-        // Skip if no employee ID or name
-        if (!employeeId || !name) {
-          console.log("[v0] Skipping employee - missing ID or name:", { employeeId, name, firstName, lastName })
+        if (!name) {
+          console.log(
+            "[v0] Skipping employee - missing name. Record ID:",
+            record.recordId,
+            "Field data:",
+            record.fieldData,
+          )
           return null
         }
 
