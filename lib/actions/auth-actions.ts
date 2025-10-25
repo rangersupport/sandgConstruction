@@ -50,6 +50,8 @@ function isWeakPIN(pin: string): boolean {
 export async function employeeLogin(employeeNumber: string, pin: string): Promise<AuthResult> {
   try {
     console.log("[v0] employeeLogin: Starting login for employee:", employeeNumber)
+    console.log("[v0] employeeLogin: Searching in layout:", FILEMAKER_LAYOUTS.EMPLOYEES)
+    console.log("[v0] employeeLogin: Using field:", EMPLOYEE_FIELDS.EMPLOYEE_LOGIN_NUMBER)
 
     const result = await fileMaker.findRecords(FILEMAKER_LAYOUTS.EMPLOYEES, [
       { [EMPLOYEE_FIELDS.EMPLOYEE_LOGIN_NUMBER]: employeeNumber },
@@ -58,10 +60,23 @@ export async function employeeLogin(employeeNumber: string, pin: string): Promis
     console.log("[v0] employeeLogin: FileMaker search result:", {
       found: result.response.data?.length || 0,
       dataLength: result.response.dataInfo?.foundCount,
+      rawData: result.response.data?.[0]?.fieldData,
     })
 
     if (!result.response.data || result.response.data.length === 0) {
       console.log("[v0] employeeLogin: No employee found with number:", employeeNumber)
+      try {
+        const allEmployees = await fileMaker.getRecords(FILEMAKER_LAYOUTS.EMPLOYEES, { _limit: 5 })
+        console.log(
+          "[v0] employeeLogin: Sample employees in database:",
+          allEmployees.response.data?.map((e) => ({
+            loginNumber: e.fieldData[EMPLOYEE_FIELDS.EMPLOYEE_LOGIN_NUMBER],
+            name: e.fieldData[EMPLOYEE_FIELDS.NAME_FULL],
+          })),
+        )
+      } catch (e) {
+        console.log("[v0] employeeLogin: Could not fetch sample employees:", e)
+      }
       return { success: false, error: "Invalid employee number or PIN" }
     }
 
@@ -69,11 +84,21 @@ export async function employeeLogin(employeeNumber: string, pin: string): Promis
     console.log("[v0] employeeLogin: Found employee:", {
       id: employee[EMPLOYEE_FIELDS.ID],
       name: employee[EMPLOYEE_FIELDS.NAME_FULL],
+      loginNumber: employee[EMPLOYEE_FIELDS.EMPLOYEE_LOGIN_NUMBER],
       hasPin: !!employee[EMPLOYEE_FIELDS.PIN_HASH],
+      pinValue: employee[EMPLOYEE_FIELDS.PIN_HASH],
+      mustChangePin: employee[EMPLOYEE_FIELDS.MUST_CHANGE_PIN],
     })
 
     const storedPin = employee[EMPLOYEE_FIELDS.PIN_HASH]
     const isFirstLogin = !storedPin || storedPin === "" || storedPin === DEFAULT_PIN
+
+    console.log("[v0] employeeLogin: PIN validation:", {
+      isFirstLogin,
+      storedPin,
+      enteredPin: pin,
+      defaultPin: DEFAULT_PIN,
+    })
 
     if (isFirstLogin) {
       // First login: validate against default PIN
@@ -124,6 +149,12 @@ export async function employeeLogin(employeeNumber: string, pin: string): Promis
     }
   } catch (error) {
     console.error("[v0] Employee login error:", error)
+    if (error instanceof Error) {
+      console.error("[v0] Error details:", {
+        message: error.message,
+        stack: error.stack,
+      })
+    }
     return { success: false, error: "An unexpected error occurred" }
   }
 }
