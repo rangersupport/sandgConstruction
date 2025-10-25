@@ -3,7 +3,7 @@
 import { fileMaker } from "@/lib/filemaker/client"
 import { revalidatePath } from "next/cache"
 import type { EmployeeStatus } from "@/lib/types/database"
-import { FILEMAKER_LAYOUTS, TIME_ENTRY_FIELDS, PROJECT_FIELDS } from "@/lib/filemaker/config"
+import { FILEMAKER_LAYOUTS, TIME_ENTRY_FIELDS, PROJECT_FIELDS, EMPLOYEE_FIELDS } from "@/lib/filemaker/config"
 import { formatDateForFileMaker } from "@/lib/filemaker/utils"
 
 interface ClockInData {
@@ -79,6 +79,27 @@ export async function getEmployeeStatus(employeeId: string): Promise<EmployeeSta
 }
 
 export async function clockIn(data: ClockInData): Promise<{ success: boolean; error?: string; timeEntry?: any }> {
+  try {
+    const employeeResult = await fileMaker.findRecords(FILEMAKER_LAYOUTS.EMPLOYEES, [
+      { [EMPLOYEE_FIELDS.EMPLOYEE_LOGIN_NUMBER]: data.employeeId },
+    ])
+
+    if (employeeResult.response.data && employeeResult.response.data.length > 0) {
+      const employee = employeeResult.response.data[0].fieldData
+      const mustChangePin =
+        employee[EMPLOYEE_FIELDS.MUST_CHANGE_PIN] === "1" || employee[EMPLOYEE_FIELDS.MUST_CHANGE_PIN] === 1
+
+      if (mustChangePin) {
+        return {
+          success: false,
+          error: "You must change your PIN before clocking in. Please log out and change your PIN first.",
+        }
+      }
+    }
+  } catch (error) {
+    console.error("[v0] Error checking employee PIN status:", error)
+  }
+
   const status = await getEmployeeStatus(data.employeeId)
   if (status?.is_clocked_in) {
     const clockInTime = new Date(status.clock_in!).toLocaleString()

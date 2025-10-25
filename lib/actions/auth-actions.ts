@@ -294,23 +294,21 @@ export async function changeEmployeePIN(employeeId: string, newPIN: string, conf
     const recordId = result.response.data[0].recordId
     console.log("[v0] changeEmployeePIN: Found FileMaker recordId:", recordId)
 
-    const now = new Date().toLocaleString("en-US", {
-      timeZone: "America/New_York",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false,
-    })
+    const now = new Date()
+    const month = String(now.getMonth() + 1).padStart(2, "0")
+    const day = String(now.getDate()).padStart(2, "0")
+    const year = now.getFullYear()
+    const hours = String(now.getHours()).padStart(2, "0")
+    const minutes = String(now.getMinutes()).padStart(2, "0")
+    const seconds = String(now.getSeconds()).padStart(2, "0")
+    const fileMakerDate = `${month}/${day}/${year} ${hours}:${minutes}:${seconds}`
 
-    console.log("[v0] changeEmployeePIN: Updating record with new PIN")
+    console.log("[v0] changeEmployeePIN: Updating record with new PIN and date:", fileMakerDate)
     const updateResult = await fileMaker.updateRecord(FILEMAKER_LAYOUTS.EMPLOYEES, recordId, {
       [EMPLOYEE_FIELDS.PIN_HASH]: newPIN,
       [EMPLOYEE_FIELDS.MUST_CHANGE_PIN]: "0",
       [EMPLOYEE_FIELDS.PIN_CHANGED]: "1",
-      [EMPLOYEE_FIELDS.PIN_LAST_CHANGED]: now,
+      [EMPLOYEE_FIELDS.PIN_LAST_CHANGED]: fileMakerDate,
     })
 
     console.log("[v0] changeEmployeePIN: Update successful:", updateResult)
