@@ -1,11 +1,30 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { NewEmployeeDialog } from "@/components/employees/new-employee-dialog"
 import { getAllEmployeesFileMaker } from "@/lib/actions/filemaker-employee-actions"
+import { getAllEmployeesWithStatus } from "@/lib/actions/admin-actions"
+import { getAllProjects } from "@/lib/actions/project-actions"
+import { EmployeeListWithActions } from "@/components/employees/employee-list-with-actions"
 
 export default async function EmployeesPage() {
-  const result = await getAllEmployeesFileMaker()
-  const employees = result.success ? result.employees : []
+  const [employeesWithStatus, projectsResult] = await Promise.all([getAllEmployeesWithStatus(), getAllProjects()])
+
+  // Fallback to FileMaker employees if status fetch fails
+  const fileMakerResult = await getAllEmployeesFileMaker()
+  const fileMakerEmployees = fileMakerResult.success ? fileMakerResult.employees : []
+
+  // Merge FileMaker employee data with status data
+  const employees = employeesWithStatus.map((empStatus) => {
+    const fmEmployee = fileMakerEmployees.find((fmEmp) => fmEmp.id === empStatus.id)
+    return {
+      ...empStatus,
+      ...fmEmployee,
+      isClockedIn: empStatus.isClockedIn,
+      currentTimeEntry: empStatus.currentTimeEntry,
+    }
+  })
+
+  const clockedInCount = employees.filter((e) => e.isClockedIn).length
+  const availableCount = employees.length - clockedInCount
 
   return (
     <div className="p-6 space-y-6">
@@ -14,68 +33,26 @@ export default async function EmployeesPage() {
           <h1 className="text-3xl font-semibold tracking-tight">Employees</h1>
           <p className="text-sm text-muted-foreground">Manage your construction team</p>
         </div>
-        <NewEmployeeDialog />
+        <div className="flex items-center gap-3">
+          <Badge variant="default" className="gap-1">
+            {clockedInCount} Clocked In
+          </Badge>
+          <Badge variant="secondary" className="gap-1">
+            {availableCount} Available
+          </Badge>
+          <NewEmployeeDialog />
+        </div>
       </div>
 
-      {!result.success && (
+      {!fileMakerResult.success && (
         <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
-          <p className="text-sm text-destructive">Failed to load employees from FileMaker: {result.error}</p>
+          <p className="text-sm text-destructive">Failed to load employees from FileMaker: {fileMakerResult.error}</p>
         </div>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {employees.map((employee) => (
-          <Card key={employee.id}>
-            <CardHeader>
-              <CardTitle className="text-lg">{employee.name}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Role:</span>
-                <Badge variant="outline">{employee.role || "N/A"}</Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Status:</span>
-                <Badge variant={employee.status === "active" ? "default" : "secondary"}>
-                  {employee.status || "N/A"}
-                </Badge>
-              </div>
-              {employee.phone && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Phone:</span>
-                  <span className="text-sm">{employee.phone}</span>
-                </div>
-              )}
-              {employee.cell && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Cell:</span>
-                  <span className="text-sm">{employee.cell}</span>
-                </div>
-              )}
-              {employee.email && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Email:</span>
-                  <span className="text-sm truncate max-w-[200px]">{employee.email}</span>
-                </div>
-              )}
-              {employee.hourly_wage && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Hourly Rate:</span>
-                  <span className="text-sm font-semibold">${employee.hourly_wage}/hr</span>
-                </div>
-              )}
-              {employee.department && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Department:</span>
-                  <span className="text-sm">{employee.department}</span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <EmployeeListWithActions employees={employees} projects={projectsResult} />
 
-      {employees.length === 0 && result.success && (
+      {employees.length === 0 && fileMakerResult.success && (
         <div className="text-center py-12">
           <p className="text-muted-foreground">No employees found in FileMaker</p>
         </div>
