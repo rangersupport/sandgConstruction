@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -61,6 +62,7 @@ interface EmployeeListWithActionsProps {
 }
 
 export function EmployeeListWithActions({ employees: initialEmployees, projects }: EmployeeListWithActionsProps) {
+  const router = useRouter()
   const [employees, setEmployees] = useState(initialEmployees)
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null)
   const [selectedProject, setSelectedProject] = useState("")
@@ -92,8 +94,7 @@ export function EmployeeListWithActions({ employees: initialEmployees, projects 
         setSelectedEmployee(null)
         setSelectedProject("")
         setClockInNotes("")
-        // Refresh the page to show updated status
-        window.location.reload()
+        router.refresh()
       } else {
         toast.error(result.error || "Failed to clock in employee")
       }
@@ -115,8 +116,7 @@ export function EmployeeListWithActions({ employees: initialEmployees, projects 
         toast.success(`${employee.name} has been clocked out`)
         setIsClockOutDialogOpen(false)
         setEmployeeToClockOut(null)
-        // Refresh the page to show updated status
-        window.location.reload()
+        router.refresh()
       } else {
         toast.error(result.error || "Failed to clock out employee")
       }

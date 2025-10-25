@@ -7,6 +7,9 @@ import { getAllEmployeesWithStatus } from "@/lib/actions/admin-actions"
 import { getActiveProjects } from "@/lib/actions/time-entry-actions"
 import { EmployeeListWithActions } from "@/components/employees/employee-list-with-actions"
 
+export const dynamic = "force-dynamic"
+export const revalidate = 0
+
 export default async function EmployeesPage() {
   const [employeesWithStatus, projectsResult] = await Promise.all([getAllEmployeesWithStatus(), getActiveProjects()])
 
