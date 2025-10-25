@@ -90,7 +90,7 @@ export async function employeeLogin(employeeNumber: string, pin: string): Promis
       mustChangePin: employee[EMPLOYEE_FIELDS.MUST_CHANGE_PIN],
     })
 
-    const storedPin = employee[EMPLOYEE_FIELDS.PIN_HASH]
+    const storedPin = String(employee[EMPLOYEE_FIELDS.PIN_HASH] || "")
     const isFirstLogin = !storedPin || storedPin === "" || storedPin === DEFAULT_PIN
 
     console.log("[v0] employeeLogin: PIN validation:", {
