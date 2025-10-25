@@ -16,6 +16,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Clock, LogIn, LogOut, Edit, Users, Loader2 } from "lucide-react"
 import { toast } from "sonner"
@@ -59,6 +69,8 @@ export function TimeClockDashboard() {
   const [clockInNotes, setClockInNotes] = useState("")
   const [isClockInDialogOpen, setIsClockInDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [isClockOutDialogOpen, setIsClockOutDialogOpen] = useState(false)
+  const [employeeToClockOut, setEmployeeToClockOut] = useState<Employee | null>(null)
   const [editClockIn, setEditClockIn] = useState("")
   const [editClockOut, setEditClockOut] = useState("")
   const [editNotes, setEditNotes] = useState("")
@@ -123,6 +135,8 @@ export function TimeClockDashboard() {
 
       if (result.success) {
         toast.success(`${employee.name} has been clocked out`)
+        setIsClockOutDialogOpen(false)
+        setEmployeeToClockOut(null)
         await loadData()
       } else {
         toast.error(result.error || "Failed to clock out employee")
@@ -264,7 +278,10 @@ export function TimeClockDashboard() {
                     <Button
                       variant="destructive"
                       size="sm"
-                      onClick={() => handleClockOut(employee)}
+                      onClick={() => {
+                        setEmployeeToClockOut(employee)
+                        setIsClockOutDialogOpen(true)
+                      }}
                       disabled={actionLoading}
                     >
                       <LogOut className="w-4 h-4 mr-1" />
@@ -333,7 +350,65 @@ export function TimeClockDashboard() {
           ))}
         </div>
 
-        {/* Edit Time Entry Dialog */}
+        <AlertDialog open={isClockOutDialogOpen} onOpenChange={setIsClockOutDialogOpen}>
+          <AlertDialogContent className="bg-white text-gray-900 dark:bg-white dark:text-gray-900">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Clock Out Confirmation</AlertDialogTitle>
+              <AlertDialogDescription className="text-gray-600">
+                {employeeToClockOut && employeeToClockOut.currentTimeEntry && (
+                  <div className="space-y-2 mt-2">
+                    <p>
+                      <strong>{employeeToClockOut.name}</strong> will be clocked out from:
+                    </p>
+                    <p className="font-medium">{employeeToClockOut.currentTimeEntry.project.name}</p>
+                    <p>
+                      Clocked in at:{" "}
+                      {new Date(employeeToClockOut.currentTimeEntry.clock_in).toLocaleString("en-US", {
+                        month: "numeric",
+                        day: "numeric",
+                        year: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                        hour12: true,
+                      })}
+                    </p>
+                    <p>
+                      Time worked:{" "}
+                      {(
+                        (Date.now() - new Date(employeeToClockOut.currentTimeEntry.clock_in).getTime()) /
+                        3600000
+                      ).toFixed(2)}{" "}
+                      hours
+                    </p>
+                    <p className="mt-4">Are you sure you want to clock out this employee?</p>
+                  </div>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel
+                onClick={() => {
+                  setIsClockOutDialogOpen(false)
+                  setEmployeeToClockOut(null)
+                }}
+              >
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (employeeToClockOut) {
+                    handleClockOut(employeeToClockOut)
+                  }
+                }}
+                disabled={actionLoading}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Yes, Clock Out"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
           <DialogContent>
             <DialogHeader>
