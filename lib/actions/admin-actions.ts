@@ -141,36 +141,53 @@ export async function getAllEmployeesWithStatus() {
     console.log("[v0] Found", employeesResult.response.data.length, "employees in FileMaker")
 
     if (employeesResult.response.data.length > 0) {
+      console.log("[v0] Sample employee fieldData keys:", Object.keys(employeesResult.response.data[0].fieldData))
       console.log("[v0] Sample employee data:", JSON.stringify(employeesResult.response.data[0].fieldData, null, 2))
     }
 
     // Get current clock-in status for each employee
     const employeesWithStatus = await Promise.all(
       employeesResult.response.data.map(async (record: any) => {
+        const fieldData = record.fieldData
+
         const employeeId =
-          record.fieldData[EMPLOYEE_FIELDS.EMPLOYEE_LOGIN_NUMBER] ||
-          record.fieldData[EMPLOYEE_FIELDS.ID] ||
+          fieldData[EMPLOYEE_FIELDS.EMPLOYEE_LOGIN_NUMBER] ||
+          fieldData[EMPLOYEE_FIELDS.ID] ||
+          fieldData["ID_staff"] ||
           record.recordId
 
-        // Try to get full name first, then fall back to combining first and last
-        let name = record.fieldData[EMPLOYEE_FIELDS.NAME_FULL]
+        let name = fieldData[EMPLOYEE_FIELDS.NAME_FULL] || fieldData["Name_Full"] || fieldData["name_full"]
+
         if (!name) {
-          const firstName = record.fieldData[EMPLOYEE_FIELDS.NAME_FIRST] || ""
-          const lastName = record.fieldData[EMPLOYEE_FIELDS.NAME_LAST] || ""
+          const firstName =
+            fieldData[EMPLOYEE_FIELDS.NAME_FIRST] || fieldData["Name_First"] || fieldData["name_first"] || ""
+          const lastName =
+            fieldData[EMPLOYEE_FIELDS.NAME_LAST] || fieldData["Name_Last"] || fieldData["name_last"] || ""
           name = `${firstName} ${lastName}`.trim()
         }
 
-        const status = record.fieldData[EMPLOYEE_FIELDS.STATUS]
+        if (!name) {
+          // Try to find any field with "name" in it
+          const nameField = Object.keys(fieldData).find((key) => key.toLowerCase().includes("name") && fieldData[key])
+          if (nameField) {
+            name = fieldData[nameField]
+          }
+        }
 
         if (!name) {
-          console.log(
-            "[v0] Skipping employee - missing name. Record ID:",
-            record.recordId,
-            "Field data:",
-            record.fieldData,
-          )
-          return null
+          name = `Employee ${employeeId}`
         }
+
+        const status = fieldData[EMPLOYEE_FIELDS.STATUS] || fieldData["Status"] || "active"
+
+        console.log("[v0] Processing employee:", {
+          recordId: record.recordId,
+          employeeId,
+          name,
+          hasNameFull: !!fieldData[EMPLOYEE_FIELDS.NAME_FULL],
+          hasNameFirst: !!fieldData[EMPLOYEE_FIELDS.NAME_FIRST],
+          hasNameLast: !!fieldData[EMPLOYEE_FIELDS.NAME_LAST],
+        })
 
         // Check if employee is clocked in
         try {
@@ -201,13 +218,13 @@ export async function getAllEmployeesWithStatus() {
           return {
             id: employeeId,
             name,
-            email: record.fieldData[EMPLOYEE_FIELDS.EMAIL],
-            phone: record.fieldData[EMPLOYEE_FIELDS.PHONE1],
-            cell: record.fieldData[EMPLOYEE_FIELDS.CELL],
-            role: record.fieldData[EMPLOYEE_FIELDS.CATEGORY],
+            email: fieldData[EMPLOYEE_FIELDS.EMAIL] || fieldData["Email"],
+            phone: fieldData[EMPLOYEE_FIELDS.PHONE1] || fieldData["Phone1"],
+            cell: fieldData[EMPLOYEE_FIELDS.CELL] || fieldData["Cell"],
+            role: fieldData[EMPLOYEE_FIELDS.CATEGORY] || fieldData["Category"] || "worker",
             status,
-            hourly_wage: record.fieldData[EMPLOYEE_FIELDS.HOURLY_RATE],
-            department: record.fieldData[EMPLOYEE_FIELDS.DEPARTMENT],
+            hourly_wage: fieldData[EMPLOYEE_FIELDS.HOURLY_RATE] || fieldData["Hourly_rate"],
+            department: fieldData[EMPLOYEE_FIELDS.DEPARTMENT] || fieldData["Department"],
             isClockedIn: !!currentTimeEntry,
             currentTimeEntry,
           }
@@ -216,13 +233,13 @@ export async function getAllEmployeesWithStatus() {
           return {
             id: employeeId,
             name,
-            email: record.fieldData[EMPLOYEE_FIELDS.EMAIL],
-            phone: record.fieldData[EMPLOYEE_FIELDS.PHONE1],
-            cell: record.fieldData[EMPLOYEE_FIELDS.CELL],
-            role: record.fieldData[EMPLOYEE_FIELDS.CATEGORY],
+            email: fieldData[EMPLOYEE_FIELDS.EMAIL] || fieldData["Email"],
+            phone: fieldData[EMPLOYEE_FIELDS.PHONE1] || fieldData["Phone1"],
+            cell: fieldData[EMPLOYEE_FIELDS.CELL] || fieldData["Cell"],
+            role: fieldData[EMPLOYEE_FIELDS.CATEGORY] || fieldData["Category"] || "worker",
             status,
-            hourly_wage: record.fieldData[EMPLOYEE_FIELDS.HOURLY_RATE],
-            department: record.fieldData[EMPLOYEE_FIELDS.DEPARTMENT],
+            hourly_wage: fieldData[EMPLOYEE_FIELDS.HOURLY_RATE] || fieldData["Hourly_rate"],
+            department: fieldData[EMPLOYEE_FIELDS.DEPARTMENT] || fieldData["Department"],
             isClockedIn: false,
             currentTimeEntry: null,
           }
@@ -230,10 +247,8 @@ export async function getAllEmployeesWithStatus() {
       }),
     )
 
-    // Filter out null entries and return
-    const validEmployees = employeesWithStatus.filter((emp) => emp !== null)
-    console.log("[v0] Returning", validEmployees.length, "employees with status")
-    return validEmployees
+    console.log("[v0] Returning", employeesWithStatus.length, "employees with status")
+    return employeesWithStatus
   } catch (error) {
     console.error("[v0] Error fetching employees with status:", error)
     return []
