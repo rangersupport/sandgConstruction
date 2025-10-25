@@ -131,13 +131,14 @@ export async function adminClockIn(
 
 export async function getAllEmployeesWithStatus() {
   try {
-    const employeesResult = await fileMaker.findRecords(FILEMAKER_LAYOUTS.EMPLOYEES, [
-      { [EMPLOYEE_FIELDS.STATUS]: "Active" },
-    ])
+    const employeesResult = await fileMaker.getRecords(FILEMAKER_LAYOUTS.EMPLOYEES, 200)
 
     if (!employeesResult.response.data) {
+      console.log("[v0] No employees found in FileMaker")
       return []
     }
+
+    console.log("[v0] Found", employeesResult.response.data.length, "employees in FileMaker")
 
     // Get current clock-in status for each employee
     const employeesWithStatus = await Promise.all(
@@ -146,44 +147,69 @@ export async function getAllEmployeesWithStatus() {
         const firstName = record.fieldData[EMPLOYEE_FIELDS.FIRST_NAME] || ""
         const lastName = record.fieldData[EMPLOYEE_FIELDS.LAST_NAME] || ""
         const name = `${firstName} ${lastName}`.trim()
+        const status = record.fieldData[EMPLOYEE_FIELDS.STATUS]
 
-        // Check if employee is clocked in
-        const timeEntryResult = await fileMaker.findRecords(FILEMAKER_LAYOUTS.TIME_ENTRIES, [
-          {
-            [TIME_ENTRY_FIELDS.EMPLOYEE_ID]: employeeId,
-            [TIME_ENTRY_FIELDS.STATUS]: "clocked_in",
-          },
-        ])
-
-        let currentTimeEntry = null
-        if (timeEntryResult.response.data && timeEntryResult.response.data.length > 0) {
-          const entry = timeEntryResult.response.data[0]
-          currentTimeEntry = {
-            id: entry.recordId,
-            clock_in: parseDateFromFileMaker(entry.fieldData[TIME_ENTRY_FIELDS.CLOCK_IN]).toISOString(),
-            clock_in_lat: entry.fieldData[TIME_ENTRY_FIELDS.CLOCK_IN_LAT],
-            clock_in_lng: entry.fieldData[TIME_ENTRY_FIELDS.CLOCK_IN_LNG],
-            project: {
-              id: entry.fieldData[TIME_ENTRY_FIELDS.PROJECT_ID],
-              name: entry.fieldData[TIME_ENTRY_FIELDS.PROJECT_NAME],
-            },
-          }
+        // Skip if no employee ID or name
+        if (!employeeId || !name) {
+          return null
         }
 
-        return {
-          id: employeeId,
-          name,
-          email: record.fieldData[EMPLOYEE_FIELDS.EMAIL],
-          phone: record.fieldData[EMPLOYEE_FIELDS.PHONE],
-          role: record.fieldData[EMPLOYEE_FIELDS.WEB_ADMIN_ROLE],
-          status: record.fieldData[EMPLOYEE_FIELDS.STATUS],
-          isClockedIn: !!currentTimeEntry,
-          currentTimeEntry,
+        // Check if employee is clocked in
+        try {
+          const timeEntryResult = await fileMaker.findRecords(FILEMAKER_LAYOUTS.TIME_ENTRIES, [
+            {
+              [TIME_ENTRY_FIELDS.EMPLOYEE_ID]: employeeId,
+              [TIME_ENTRY_FIELDS.STATUS]: "clocked_in",
+            },
+          ])
+
+          let currentTimeEntry = null
+          if (timeEntryResult.response.data && timeEntryResult.response.data.length > 0) {
+            const entry = timeEntryResult.response.data[0]
+            const clockInParsed = parseDateFromFileMaker(entry.fieldData[TIME_ENTRY_FIELDS.CLOCK_IN])
+
+            currentTimeEntry = {
+              id: entry.recordId,
+              clock_in: clockInParsed.toISOString(),
+              clock_in_lat: entry.fieldData[TIME_ENTRY_FIELDS.CLOCK_IN_LAT],
+              clock_in_lng: entry.fieldData[TIME_ENTRY_FIELDS.CLOCK_IN_LNG],
+              project: {
+                id: entry.fieldData[TIME_ENTRY_FIELDS.PROJECT_ID],
+                name: entry.fieldData[TIME_ENTRY_FIELDS.PROJECT_NAME],
+              },
+            }
+          }
+
+          return {
+            id: employeeId,
+            name,
+            email: record.fieldData[EMPLOYEE_FIELDS.EMAIL],
+            phone: record.fieldData[EMPLOYEE_FIELDS.PHONE],
+            role: record.fieldData[EMPLOYEE_FIELDS.WEB_ADMIN_ROLE],
+            status,
+            isClockedIn: !!currentTimeEntry,
+            currentTimeEntry,
+          }
+        } catch (error) {
+          console.error(`[v0] Error fetching time entry for employee ${employeeId}:`, error)
+          return {
+            id: employeeId,
+            name,
+            email: record.fieldData[EMPLOYEE_FIELDS.EMAIL],
+            phone: record.fieldData[EMPLOYEE_FIELDS.PHONE],
+            role: record.fieldData[EMPLOYEE_FIELDS.WEB_ADMIN_ROLE],
+            status,
+            isClockedIn: false,
+            currentTimeEntry: null,
+          }
         }
       }),
     )
 
-    return employeesWithStatus
+    // Filter out null entries and return
+    const validEmployees = employeesWithStatus.filter((emp) => emp !== null)
+    console.log("[v0] Returning", validEmployees.length, "employees with status")
+    return validEmployees
   } catch (error) {
     console.error("[v0] Error fetching employees with status:", error)
     return []
