@@ -1,4 +1,7 @@
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { ArrowLeft } from "lucide-react"
+import Link from "next/link"
 import { getAllEmployeesFileMaker } from "@/lib/actions/filemaker-employee-actions"
 import { getAllEmployeesWithStatus } from "@/lib/actions/admin-actions"
 import { getActiveProjects } from "@/lib/actions/time-entry-actions"
@@ -27,6 +30,15 @@ export default async function EmployeesPage() {
 
   return (
     <div className="p-6 space-y-6">
+      <div className="flex items-center gap-4">
+        <Link href="/dashboard">
+          <Button variant="outline" size="sm" className="gap-2 bg-transparent">
+            <ArrowLeft className="h-4 w-4" />
+            Dashboard
+          </Button>
+        </Link>
+      </div>
+
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">Employees</h1>
