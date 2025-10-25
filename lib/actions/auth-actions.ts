@@ -5,6 +5,8 @@ import { FILEMAKER_LAYOUTS, EMPLOYEE_FIELDS } from "@/lib/filemaker/config"
 import { redirect } from "next/navigation"
 import { cookies } from "next/headers"
 
+const DEFAULT_PIN = "1234"
+
 export interface AuthResult {
   success: boolean
   error?: string
@@ -71,9 +73,20 @@ export async function employeeLogin(employeeNumber: string, pin: string): Promis
     })
 
     const storedPin = employee[EMPLOYEE_FIELDS.PIN_HASH]
-    if (storedPin !== pin) {
-      console.log("[v0] employeeLogin: PIN mismatch")
-      return { success: false, error: "Invalid employee number or PIN" }
+    const isFirstLogin = !storedPin || storedPin === "" || storedPin === DEFAULT_PIN
+
+    if (isFirstLogin) {
+      // First login: validate against default PIN
+      if (pin !== DEFAULT_PIN) {
+        console.log("[v0] employeeLogin: Default PIN mismatch")
+        return { success: false, error: "Invalid employee number or PIN" }
+      }
+    } else {
+      // Regular login: validate against stored PIN
+      if (storedPin !== pin) {
+        console.log("[v0] employeeLogin: PIN mismatch")
+        return { success: false, error: "Invalid employee number or PIN" }
+      }
     }
 
     console.log("[v0] employeeLogin: Login successful")
@@ -95,6 +108,11 @@ export async function employeeLogin(employeeNumber: string, pin: string): Promis
       },
     )
 
+    const mustChangePIN =
+      isFirstLogin ||
+      employee[EMPLOYEE_FIELDS.MUST_CHANGE_PIN] === "1" ||
+      employee[EMPLOYEE_FIELDS.MUST_CHANGE_PIN] === 1
+
     return {
       success: true,
       user: {
@@ -102,8 +120,7 @@ export async function employeeLogin(employeeNumber: string, pin: string): Promis
         email: employee[EMPLOYEE_FIELDS.NAME_FULL],
         role: employee[EMPLOYEE_FIELDS.CATEGORY] || "employee",
       },
-      mustChangePIN:
-        employee[EMPLOYEE_FIELDS.MUST_CHANGE_PIN] === "1" || employee[EMPLOYEE_FIELDS.MUST_CHANGE_PIN] === 1,
+      mustChangePIN,
     }
   } catch (error) {
     console.error("[v0] Employee login error:", error)
