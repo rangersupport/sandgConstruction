@@ -375,10 +375,10 @@ export function TimeClock({ employeeId, employeeName }: TimeClockProps) {
       </Card>
 
       <AlertDialog open={showClockOutDialog} onOpenChange={setShowClockOutDialog}>
-        <AlertDialogContent>
+        <AlertDialogContent className="bg-white text-gray-900 dark:bg-white dark:text-gray-900">
           <AlertDialogHeader>
-            <AlertDialogTitle>Clock Out Confirmation</AlertDialogTitle>
-            <AlertDialogDescription className="space-y-2">
+            <AlertDialogTitle className="text-gray-900">Clock Out Confirmation</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2 text-gray-700">
               <div>
                 You clocked in at <strong>{status?.clock_in ? new Date(status.clock_in).toLocaleString() : ""}</strong>
               </div>
