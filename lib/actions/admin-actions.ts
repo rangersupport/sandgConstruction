@@ -254,3 +254,106 @@ export async function adminEditTimeEntry(
     }
   }
 }
+
+export async function getAutoClockoutReports(): Promise<AutoClockoutReport[]> {
+  try {
+    // For now, return empty array since we don't have auto-clockout tracking yet
+    // This will be implemented when we add the auto-clockout feature
+    return []
+  } catch (error) {
+    console.error("[v0] Error fetching auto clockout reports:", error)
+    return []
+  }
+}
+
+export async function getLocationComplianceReports(): Promise<LocationComplianceReport[]> {
+  try {
+    // Get all time entries with location data
+    const result = await fileMaker.getRecords(FILEMAKER_LAYOUTS.TIME_ENTRIES, 200)
+
+    if (!result.response.data) {
+      return []
+    }
+
+    const reports: LocationComplianceReport[] = result.response.data
+      .filter((record: any) => {
+        const clockInLat = record.fieldData[TIME_ENTRY_FIELDS.CLOCK_IN_LAT]
+        const clockInLng = record.fieldData[TIME_ENTRY_FIELDS.CLOCK_IN_LNG]
+        return clockInLat && clockInLng
+      })
+      .map((record: any) => {
+        const clockInParsed = parseDateFromFileMaker(record.fieldData[TIME_ENTRY_FIELDS.CLOCK_IN])
+
+        // Calculate distance from project (placeholder - would need project coordinates)
+        const distanceFromProject = 0 // TODO: Calculate actual distance when project coordinates are available
+        const locationVerified = distanceFromProject <= 50 // Within 50 meters
+
+        return {
+          id: record.recordId,
+          employee_name: record.fieldData[TIME_ENTRY_FIELDS.EMPLOYEE_NAME],
+          project_name: record.fieldData[TIME_ENTRY_FIELDS.PROJECT_NAME],
+          clock_in: clockInParsed.toISOString(),
+          distance_from_project: distanceFromProject,
+          location_verified: locationVerified,
+          clock_in_lat: Number.parseFloat(record.fieldData[TIME_ENTRY_FIELDS.CLOCK_IN_LAT]) || 0,
+          clock_in_lng: Number.parseFloat(record.fieldData[TIME_ENTRY_FIELDS.CLOCK_IN_LNG]) || 0,
+          project_lat: 0, // TODO: Get from project data
+          project_lng: 0, // TODO: Get from project data
+        }
+      })
+
+    return reports
+  } catch (error) {
+    console.error("[v0] Error fetching location compliance reports:", error)
+    return []
+  }
+}
+
+export async function getAutoClockoutStats() {
+  try {
+    const reports = await getAutoClockoutReports()
+
+    const total = reports.length
+    const totalHours = reports.reduce((sum, report) => sum + report.hours_worked, 0)
+    const averageHours = total > 0 ? totalHours / total : 0
+
+    return {
+      total,
+      totalHours,
+      averageHours,
+    }
+  } catch (error) {
+    console.error("[v0] Error calculating auto clockout stats:", error)
+    return {
+      total: 0,
+      totalHours: 0,
+      averageHours: 0,
+    }
+  }
+}
+
+export async function getLocationComplianceStats() {
+  try {
+    const reports = await getLocationComplianceReports()
+
+    const total = reports.length
+    const verified = reports.filter((r) => r.location_verified).length
+    const complianceRate = total > 0 ? (verified / total) * 100 : 0
+    const averageDistance = total > 0 ? reports.reduce((sum, r) => sum + r.distance_from_project, 0) / total : 0
+
+    return {
+      total,
+      verified,
+      complianceRate,
+      averageDistance,
+    }
+  } catch (error) {
+    console.error("[v0] Error calculating location compliance stats:", error)
+    return {
+      total: 0,
+      verified: 0,
+      complianceRate: 0,
+      averageDistance: 0,
+    }
+  }
+}
