@@ -265,6 +265,9 @@ export async function adminLogout() {
 // Change employee PIN
 export async function changeEmployeePIN(employeeId: string, newPIN: string, confirmPIN: string): Promise<AuthResult> {
   try {
+    console.log("[v0] changeEmployeePIN: Starting PIN change for employee:", employeeId)
+    console.log("[v0] changeEmployeePIN: New PIN length:", newPIN.length)
+
     if (newPIN !== confirmPIN) {
       return { success: false, error: "PINs do not match" }
     }
@@ -280,6 +283,17 @@ export async function changeEmployeePIN(employeeId: string, newPIN: string, conf
       }
     }
 
+    console.log("[v0] changeEmployeePIN: Finding employee record with ID:", employeeId)
+    const result = await fileMaker.findRecords(FILEMAKER_LAYOUTS.EMPLOYEES, [{ [EMPLOYEE_FIELDS.ID]: employeeId }])
+
+    if (!result.response.data || result.response.data.length === 0) {
+      console.error("[v0] changeEmployeePIN: Employee not found with ID:", employeeId)
+      return { success: false, error: "Employee not found" }
+    }
+
+    const recordId = result.response.data[0].recordId
+    console.log("[v0] changeEmployeePIN: Found FileMaker recordId:", recordId)
+
     const now = new Date().toLocaleString("en-US", {
       timeZone: "America/New_York",
       year: "numeric",
@@ -291,16 +305,24 @@ export async function changeEmployeePIN(employeeId: string, newPIN: string, conf
       hour12: false,
     })
 
-    await fileMaker.updateRecord(FILEMAKER_LAYOUTS.EMPLOYEES, employeeId, {
+    console.log("[v0] changeEmployeePIN: Updating record with new PIN")
+    const updateResult = await fileMaker.updateRecord(FILEMAKER_LAYOUTS.EMPLOYEES, recordId, {
       [EMPLOYEE_FIELDS.PIN_HASH]: newPIN,
       [EMPLOYEE_FIELDS.MUST_CHANGE_PIN]: "0",
       [EMPLOYEE_FIELDS.PIN_CHANGED]: "1",
       [EMPLOYEE_FIELDS.PIN_LAST_CHANGED]: now,
     })
 
+    console.log("[v0] changeEmployeePIN: Update successful:", updateResult)
     return { success: true }
   } catch (error) {
     console.error("[v0] Change PIN error:", error)
+    if (error instanceof Error) {
+      console.error("[v0] Change PIN error details:", {
+        message: error.message,
+        stack: error.stack,
+      })
+    }
     return { success: false, error: "Failed to change PIN" }
   }
 }

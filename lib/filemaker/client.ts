@@ -157,22 +157,34 @@ export class FileMakerClient {
 
   // Update record
   async updateRecord(layout: string, recordId: string, fieldData: any) {
-    const response = await this.makeAuthenticatedRequest(
-      `${this.baseUrl}/fmi/data/v1/databases/${this.database}/layouts/${layout}/records/${recordId}`,
-      {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ fieldData }),
+    console.log("[v0] FileMaker updateRecord called")
+    console.log("[v0] Layout:", layout)
+    console.log("[v0] Record ID:", recordId)
+    console.log("[v0] Field data:", JSON.stringify(fieldData, null, 2))
+
+    const url = `${this.baseUrl}/fmi/data/v1/databases/${this.database}/layouts/${layout}/records/${recordId}`
+    console.log("[v0] Update record URL:", url)
+
+    const response = await this.makeAuthenticatedRequest(url, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
       },
-    )
+      body: JSON.stringify({ fieldData }),
+    })
+
+    console.log("[v0] Update record response status:", response.status)
+    console.log("[v0] Update record response ok:", response.ok)
 
     if (!response.ok) {
-      throw new Error("Failed to update record")
+      const errorText = await response.text()
+      console.error("[v0] FileMaker update record failed:", errorText)
+      throw new Error(`Failed to update record: ${response.status} - ${errorText}`)
     }
 
-    return response.json()
+    const result = await response.json()
+    console.log("[v0] Update record result:", JSON.stringify(result, null, 2))
+    return result
   }
 
   // Delete record
