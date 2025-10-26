@@ -26,10 +26,13 @@ export default function AdminLoginPage() {
     setError(null)
 
     console.log("[v0] Admin login: Attempting login for:", email)
+    console.log("[v0] Admin login: Password length:", password.length)
+    console.log("[v0] Admin login: Password value:", password)
 
     try {
       const result = await adminLogin(email, password)
 
+      console.log("[v0] Admin login: Full result object:", result)
       console.log("[v0] Admin login: Result:", { success: result.success, error: result.error })
 
       if (result.success) {
