@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { getEmployeeTasks } from "@/lib/actions/task-actions"
-import { TaskCard } from "@/components/tasks/task-card"
+import { TasksClient } from "@/components/tasks/tasks-client"
 
 export const dynamic = "force-dynamic"
 export const revalidate = 0
@@ -39,31 +39,7 @@ export default async function TasksPage() {
         </div>
 
         {/* Active Tasks */}
-        {tasks.length > 0 && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold text-slate-900">
-              Active Tasks
-              <span className="text-sm font-normal text-slate-600 ml-2">
-                (Completed tasks are automatically hidden)
-              </span>
-            </h2>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {tasks.map((task) => (
-                <TaskCard key={task.recordId} task={task} />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Empty State */}
-        {tasks.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-lg text-slate-600">No active tasks assigned</p>
-            <p className="text-sm text-slate-500 mt-2">
-              Tasks assigned to you will appear here. Completed tasks are automatically hidden.
-            </p>
-          </div>
-        )}
+        <TasksClient initialTasks={tasks} employeeId={employeeId} />
       </div>
     </div>
   )

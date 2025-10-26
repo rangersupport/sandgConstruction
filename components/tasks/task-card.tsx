@@ -115,6 +115,8 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
 
         {/* Description preview */}
         {task.description && <p className="text-sm text-muted-foreground line-clamp-2">{task.description}</p>}
+
+        <p className="text-xs text-muted-foreground text-center pt-2 border-t">Tap to edit task</p>
       </CardContent>
     </Card>
   )
