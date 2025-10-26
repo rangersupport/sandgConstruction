@@ -80,6 +80,8 @@ export function EmployeeListWithActions({ employees: initialEmployees, projects 
 
     setActionLoading(true)
     try {
+      console.log("[v0] Starting clock-in for:", selectedEmployee.name, "Project:", selectedProject)
+
       const result = await adminClockIn(
         selectedEmployee.id,
         selectedProject,
@@ -88,17 +90,20 @@ export function EmployeeListWithActions({ employees: initialEmployees, projects 
         clockInNotes || "Manually clocked in by admin",
       )
 
+      console.log("[v0] Clock-in result:", result)
+
       if (result.success) {
         toast.success(`${selectedEmployee.name} has been clocked in`)
-        setIsClockInDialogOpen(false)
         setSelectedEmployee(null)
         setSelectedProject("")
         setClockInNotes("")
+        setIsClockInDialogOpen(false)
         router.refresh()
       } else {
         toast.error(result.error || "Failed to clock in employee")
       }
     } catch (error) {
+      console.error("[v0] Error in handleClockIn:", error)
       toast.error("An error occurred")
     } finally {
       setActionLoading(false)
