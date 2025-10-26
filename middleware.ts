@@ -8,12 +8,22 @@ export async function middleware(request: NextRequest) {
   const adminSession = request.cookies.get("admin_session")
   const employeeSession = request.cookies.get("employee_session")
 
+  if (pathname.startsWith("/employees") || pathname.startsWith("/dashboard")) {
+    console.log("[v0] Middleware check:", {
+      pathname,
+      hasAdminSession: !!adminSession,
+      hasEmployeeSession: !!employeeSession,
+    })
+  }
+
   // Protected admin routes
   const isAdminRoute =
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/admin") ||
     pathname.startsWith("/employees") ||
     pathname.startsWith("/projects") ||
+    pathname.startsWith("/payroll") ||
+    pathname.startsWith("/map") ||
     pathname.startsWith("/tasks")
 
   // Protected employee routes
