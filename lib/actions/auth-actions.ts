@@ -163,11 +163,32 @@ export async function employeeLogin(employeeNumber: string, pin: string): Promis
 export async function adminLogin(email: string, password: string): Promise<AuthResult> {
   try {
     console.log("[v0] adminLogin: Starting login for:", email)
+    console.log("[v0] adminLogin: Layout:", FILEMAKER_LAYOUTS.EMPLOYEES)
+    console.log("[v0] adminLogin: Email field name:", EMPLOYEE_FIELDS.EMAIL)
+    console.log("[v0] adminLogin: Searching for email:", email)
 
     const result = await fileMaker.findRecords(FILEMAKER_LAYOUTS.EMPLOYEES, [{ [EMPLOYEE_FIELDS.EMAIL]: email }])
 
+    console.log("[v0] adminLogin: FileMaker raw response:", JSON.stringify(result, null, 2))
+    console.log("[v0] adminLogin: Found records count:", result.response.data?.length || 0)
+    console.log("[v0] adminLogin: Data info:", result.response.dataInfo)
+
     if (!result.response.data || result.response.data.length === 0) {
       console.log("[v0] adminLogin: No user found with email:", email)
+      try {
+        const sampleRecords = await fileMaker.getRecords(FILEMAKER_LAYOUTS.EMPLOYEES, { _limit: 3 })
+        console.log("[v0] adminLogin: Sample records from database:")
+        sampleRecords.response.data?.forEach((record, index) => {
+          console.log(`[v0] adminLogin: Sample ${index + 1}:`, {
+            email: record.fieldData[EMPLOYEE_FIELDS.EMAIL],
+            name: record.fieldData[EMPLOYEE_FIELDS.NAME_FULL],
+            webAdminRole: record.fieldData[EMPLOYEE_FIELDS.WEB_ADMIN_ROLE],
+            allFields: Object.keys(record.fieldData),
+          })
+        })
+      } catch (sampleError) {
+        console.error("[v0] adminLogin: Could not fetch sample records:", sampleError)
+      }
       return { success: false, error: "Invalid credentials" }
     }
 
@@ -181,6 +202,7 @@ export async function adminLogin(email: string, password: string): Promise<AuthR
       hasPinHash: !!admin[EMPLOYEE_FIELDS.PIN_HASH],
       pinHashValue: admin[EMPLOYEE_FIELDS.PIN_HASH],
       enteredPassword: password,
+      allFieldNames: Object.keys(admin),
     })
 
     const webAdminRole = admin[EMPLOYEE_FIELDS.WEB_ADMIN_ROLE]
@@ -189,8 +211,21 @@ export async function adminLogin(email: string, password: string): Promise<AuthR
       return { success: false, error: "Unauthorized: Admin access required. Please contact your administrator." }
     }
 
-    if (admin[EMPLOYEE_FIELDS.PIN_HASH] !== password) {
-      console.log("[v0] adminLogin: Password mismatch. Stored:", admin[EMPLOYEE_FIELDS.PIN_HASH], "Entered:", password)
+    const storedPassword = String(admin[EMPLOYEE_FIELDS.PIN_HASH] || "")
+    const enteredPassword = String(password)
+
+    console.log("[v0] adminLogin: Password comparison:", {
+      stored: storedPassword,
+      entered: enteredPassword,
+      match: storedPassword === enteredPassword,
+      storedLength: storedPassword.length,
+      enteredLength: enteredPassword.length,
+      storedType: typeof storedPassword,
+      enteredType: typeof enteredPassword,
+    })
+
+    if (storedPassword !== enteredPassword) {
+      console.log("[v0] adminLogin: Password mismatch")
       return { success: false, error: "Invalid credentials" }
     }
 
@@ -223,6 +258,13 @@ export async function adminLogin(email: string, password: string): Promise<AuthR
     }
   } catch (error) {
     console.error("[v0] Admin login error:", error)
+    if (error instanceof Error) {
+      console.error("[v0] Admin login error details:", {
+        message: error.message,
+        stack: error.stack,
+        name: error.name,
+      })
+    }
     return { success: false, error: "An unexpected error occurred" }
   }
 }
