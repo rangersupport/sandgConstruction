@@ -3,7 +3,9 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { TimeClock } from "@/components/employee/time-clock"
+import { TasksClient } from "@/components/tasks/tasks-client"
 import { Loader2 } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 interface Employee {
   id: string
@@ -40,7 +42,30 @@ export default function EmployeePage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <TimeClock employeeId={employeeId} employeeName={employeeName} />
+      <Tabs defaultValue="clock" className="w-full">
+        <div className="border-b bg-background sticky top-0 z-10">
+          <div className="max-w-2xl mx-auto px-4">
+            <TabsList className="w-full grid grid-cols-2 h-14">
+              <TabsTrigger value="clock" className="text-base">
+                Time Clock
+              </TabsTrigger>
+              <TabsTrigger value="tasks" className="text-base">
+                My Tasks
+              </TabsTrigger>
+            </TabsList>
+          </div>
+        </div>
+
+        <TabsContent value="clock" className="mt-0">
+          <TimeClock employeeId={employeeId} employeeName={employeeName} />
+        </TabsContent>
+
+        <TabsContent value="tasks" className="mt-0">
+          <div className="w-full max-w-2xl mx-auto p-4">
+            <TasksClient employeeId={employeeId} employeeName={employeeName} />
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
