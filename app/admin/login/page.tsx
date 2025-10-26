@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { adminLoginAlternative } from "@/lib/actions/auth-actions"
+import { adminLoginByLoginNumber } from "@/lib/actions/auth-actions"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -14,7 +14,7 @@ import { Loader2 } from "lucide-react"
 import Link from "next/link"
 
 export default function AdminLoginPage() {
-  const [email, setEmail] = useState("")
+  const [loginNumber, setLoginNumber] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -25,14 +25,12 @@ export default function AdminLoginPage() {
     setIsLoading(true)
     setError(null)
 
-    console.log("[v0] Admin login: Attempting login for:", email)
+    console.log("[v0] Admin login: Attempting login for:", loginNumber)
     console.log("[v0] Admin login: Password length:", password.length)
-    console.log("[v0] Admin login: Password value:", password)
 
     try {
-      const result = await adminLoginAlternative(email, password)
+      const result = await adminLoginByLoginNumber(loginNumber, password)
 
-      console.log("[v0] Admin login: Full result object:", result)
       console.log("[v0] Admin login: Result:", { success: result.success, error: result.error })
 
       if (result.success) {
@@ -65,14 +63,14 @@ export default function AdminLoginPage() {
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="loginNumber">Login Number</Label>
                 <Input
-                  id="email"
-                  type="email"
-                  placeholder="admin@sandgservice.com"
+                  id="loginNumber"
+                  type="text"
+                  placeholder="6085"
                   required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  value={loginNumber}
+                  onChange={(e) => setLoginNumber(e.target.value)}
                   disabled={isLoading}
                 />
               </div>

@@ -236,9 +236,10 @@ export async function adminLogin(email: string, password: string): Promise<AuthR
       "admin_session",
       JSON.stringify({
         id: admin[EMPLOYEE_FIELDS.ID],
-        email: admin[EMPLOYEE_FIELDS.EMAIL],
+        email: admin[EMPLOYEE_FIELDS.EMAIL] || "",
         name: admin[EMPLOYEE_FIELDS.NAME_FULL],
         role: webAdminRole,
+        loginNumber: admin[EMPLOYEE_FIELDS.EMPLOYEE_LOGIN_NUMBER],
       }),
       {
         httpOnly: true,
@@ -252,7 +253,7 @@ export async function adminLogin(email: string, password: string): Promise<AuthR
       success: true,
       user: {
         id: admin[EMPLOYEE_FIELDS.ID],
-        email: admin[EMPLOYEE_FIELDS.EMAIL],
+        email: admin[EMPLOYEE_FIELDS.EMAIL] || admin[EMPLOYEE_FIELDS.NAME_FULL],
         role: webAdminRole,
       },
     }
@@ -334,9 +335,10 @@ export async function adminLoginAlternative(email: string, password: string): Pr
       "admin_session",
       JSON.stringify({
         id: admin[EMPLOYEE_FIELDS.ID],
-        email: admin[EMPLOYEE_FIELDS.EMAIL],
+        email: admin[EMPLOYEE_FIELDS.EMAIL] || "",
         name: admin[EMPLOYEE_FIELDS.NAME_FULL],
         role: webAdminRole,
+        loginNumber: admin[EMPLOYEE_FIELDS.EMPLOYEE_LOGIN_NUMBER],
       }),
       {
         httpOnly: true,
@@ -350,12 +352,100 @@ export async function adminLoginAlternative(email: string, password: string): Pr
       success: true,
       user: {
         id: admin[EMPLOYEE_FIELDS.ID],
-        email: admin[EMPLOYEE_FIELDS.EMAIL],
+        email: admin[EMPLOYEE_FIELDS.EMAIL] || admin[EMPLOYEE_FIELDS.NAME_FULL],
         role: webAdminRole,
       },
     }
   } catch (error) {
     console.error("[v0] adminLoginAlt error:", error)
+    return { success: false, error: "An unexpected error occurred" }
+  }
+}
+
+// Admin login using Login Number instead of Email field
+export async function adminLoginByLoginNumber(loginNumber: string, password: string): Promise<AuthResult> {
+  try {
+    console.log("[v0] adminLoginByLoginNumber: Starting login for:", loginNumber)
+    console.log("[v0] adminLoginByLoginNumber: Layout:", FILEMAKER_LAYOUTS.EMPLOYEES)
+    console.log("[v0] adminLoginByLoginNumber: Login Number field:", EMPLOYEE_FIELDS.EMPLOYEE_LOGIN_NUMBER)
+
+    const result = await fileMaker.findRecords(FILEMAKER_LAYOUTS.EMPLOYEES, [
+      { [EMPLOYEE_FIELDS.EMPLOYEE_LOGIN_NUMBER]: loginNumber },
+    ])
+
+    console.log("[v0] adminLoginByLoginNumber: Found records count:", result.response.data?.length || 0)
+
+    if (!result.response.data || result.response.data.length === 0) {
+      console.log("[v0] adminLoginByLoginNumber: No user found with login number:", loginNumber)
+      return { success: false, error: "Invalid credentials" }
+    }
+
+    const admin = result.response.data[0].fieldData
+
+    console.log("[v0] adminLoginByLoginNumber: Found user:", {
+      id: admin[EMPLOYEE_FIELDS.ID],
+      name: admin[EMPLOYEE_FIELDS.NAME_FULL],
+      loginNumber: admin[EMPLOYEE_FIELDS.EMPLOYEE_LOGIN_NUMBER],
+      webAdminRole: admin[EMPLOYEE_FIELDS.WEB_ADMIN_ROLE],
+      pinHash: admin[EMPLOYEE_FIELDS.PIN_HASH],
+    })
+
+    const webAdminRole = admin[EMPLOYEE_FIELDS.WEB_ADMIN_ROLE]
+    if (webAdminRole !== "admin" && webAdminRole !== "super_admin") {
+      console.log("[v0] adminLoginByLoginNumber: User does not have admin role. Current role:", webAdminRole)
+      return { success: false, error: "Unauthorized: Admin access required" }
+    }
+
+    const storedPassword = String(admin[EMPLOYEE_FIELDS.PIN_HASH] || "")
+    const enteredPassword = String(password)
+
+    console.log("[v0] adminLoginByLoginNumber: Password comparison:", {
+      stored: storedPassword,
+      entered: enteredPassword,
+      match: storedPassword === enteredPassword,
+    })
+
+    if (storedPassword !== enteredPassword) {
+      console.log("[v0] adminLoginByLoginNumber: Password mismatch")
+      return { success: false, error: "Invalid credentials" }
+    }
+
+    console.log("[v0] adminLoginByLoginNumber: Login successful")
+
+    const cookieStore = await cookies()
+    cookieStore.set(
+      "admin_session",
+      JSON.stringify({
+        id: admin[EMPLOYEE_FIELDS.ID],
+        email: admin[EMPLOYEE_FIELDS.EMAIL] || "",
+        name: admin[EMPLOYEE_FIELDS.NAME_FULL],
+        role: webAdminRole,
+        loginNumber: admin[EMPLOYEE_FIELDS.EMPLOYEE_LOGIN_NUMBER],
+      }),
+      {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        maxAge: 60 * 60 * 24 * 7,
+        sameSite: "lax",
+      },
+    )
+
+    return {
+      success: true,
+      user: {
+        id: admin[EMPLOYEE_FIELDS.ID],
+        email: admin[EMPLOYEE_FIELDS.EMAIL] || admin[EMPLOYEE_FIELDS.NAME_FULL],
+        role: webAdminRole,
+      },
+    }
+  } catch (error) {
+    console.error("[v0] adminLoginByLoginNumber error:", error)
+    if (error instanceof Error) {
+      console.error("[v0] Error details:", {
+        message: error.message,
+        stack: error.stack,
+      })
+    }
     return { success: false, error: "An unexpected error occurred" }
   }
 }
