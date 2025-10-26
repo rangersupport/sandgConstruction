@@ -1,19 +1,39 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { TaskCard } from "@/components/tasks/task-card"
 import { TaskDetailDialog } from "@/components/tasks/task-detail-dialog"
 import { getEmployeeTasks, type Task } from "@/lib/actions/task-actions"
+import { Loader2 } from "lucide-react"
 
 interface TasksClientProps {
-  initialTasks: Task[]
   employeeId: string
+  employeeName?: string
 }
 
-export function TasksClient({ initialTasks, employeeId }: TasksClientProps) {
-  const [tasks, setTasks] = useState<Task[]>(initialTasks)
+export function TasksClient({ employeeId, employeeName }: TasksClientProps) {
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [loading, setLoading] = useState(true)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
+
+  useEffect(() => {
+    async function fetchTasks() {
+      try {
+        setLoading(true)
+        const fetchedTasks = await getEmployeeTasks(employeeId)
+        setTasks(fetchedTasks)
+      } catch (error) {
+        console.error("[v0] Error fetching tasks:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (employeeId) {
+      fetchTasks()
+    }
+  }, [employeeId])
 
   const handleTaskClick = (task: Task) => {
     setSelectedTask(task)
@@ -22,8 +42,20 @@ export function TasksClient({ initialTasks, employeeId }: TasksClientProps) {
 
   const handleTaskUpdated = async () => {
     // Refresh tasks from FileMaker after update
-    const updatedTasks = await getEmployeeTasks(employeeId)
-    setTasks(updatedTasks)
+    try {
+      const updatedTasks = await getEmployeeTasks(employeeId)
+      setTasks(updatedTasks)
+    } catch (error) {
+      console.error("[v0] Error refreshing tasks:", error)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    )
   }
 
   return (
