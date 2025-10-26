@@ -26,7 +26,9 @@ export default async function TasksPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-slate-900">My Tasks</h1>
-            <p className="text-slate-600 mt-1">{tasks.length} active tasks</p>
+            <p className="text-slate-600 mt-1">
+              {tasks.length} active {tasks.length === 1 ? "task" : "tasks"} (New & Pending only)
+            </p>
           </div>
           <Button variant="outline" asChild>
             <Link href="/dashboard">
@@ -39,7 +41,12 @@ export default async function TasksPage() {
         {/* Active Tasks */}
         {tasks.length > 0 && (
           <div className="space-y-4">
-            <h2 className="text-xl font-semibold text-slate-900">Active Tasks</h2>
+            <h2 className="text-xl font-semibold text-slate-900">
+              Active Tasks
+              <span className="text-sm font-normal text-slate-600 ml-2">
+                (Completed tasks are automatically hidden)
+              </span>
+            </h2>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {tasks.map((task) => (
                 <TaskCard key={task.recordId} task={task} />
@@ -52,7 +59,9 @@ export default async function TasksPage() {
         {tasks.length === 0 && (
           <div className="text-center py-12">
             <p className="text-lg text-slate-600">No active tasks assigned</p>
-            <p className="text-sm text-slate-500 mt-2">Tasks assigned to you will appear here</p>
+            <p className="text-sm text-slate-500 mt-2">
+              Tasks assigned to you will appear here. Completed tasks are automatically hidden.
+            </p>
           </div>
         )}
       </div>

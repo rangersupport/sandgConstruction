@@ -19,11 +19,14 @@ const TASK_FIELDS = {
   TIME_END: "Time_End",
   PRIORITY: "Priority",
   STATUS: "Status",
+  STATUS_DISPLAY_CALC: "status_display_calc", // Added automatic status calculation field
   TASK_COMPLETION_PERCENTAGE: "Task_Completion_Percentage",
   NOTES: "Notes",
   CATEGORY: "Category",
   FLAG_COMPLETE: "Flag_Complete",
   DONE: "Done",
+  DATE_COMPLETED: "Date_Completed", // Added Date_Completed field for automatic status
+  TIME_COMPLETED: "Time_Completed", // Added Time_Completed field
 }
 
 export interface Task {
@@ -40,6 +43,7 @@ export interface Task {
   timeEnd: string
   priority: string
   status: string
+  statusDisplay: string // Added automatic status display from FileMaker calculation
   completionPercentage: number
   notes: string
   category: string
@@ -51,11 +55,15 @@ export async function getEmployeeTasks(employeeId: string): Promise<Task[]> {
   console.log("[v0] Getting tasks for employee:", employeeId)
 
   try {
-    // Query FileMaker for tasks assigned to this employee
+    // This uses FileMaker's automatic status calculation based on Date_Completed
     const result = await fileMaker.findRecords(TASKS_LAYOUT, [
       {
         [TASK_FIELDS.ID_STAFF]: employeeId,
-        [TASK_FIELDS.FLAG_COMPLETE]: "0", // Only get incomplete tasks
+        [TASK_FIELDS.STATUS_DISPLAY_CALC]: "New", // Get "New" tasks
+      },
+      {
+        [TASK_FIELDS.ID_STAFF]: employeeId,
+        [TASK_FIELDS.STATUS_DISPLAY_CALC]: "Pending", // Get "Pending" tasks
       },
     ])
 
@@ -66,30 +74,26 @@ export async function getEmployeeTasks(employeeId: string): Promise<Task[]> {
       return []
     }
 
-    const tasks: Task[] = result.response.data
-      .map((record: any) => ({
-        id: record.fieldData[TASK_FIELDS.ID_TASK] || "",
-        recordId: record.recordId,
-        item: record.fieldData[TASK_FIELDS.ITEM] || "",
-        description: record.fieldData[TASK_FIELDS.DESCRIPTION] || "",
-        staffId: record.fieldData[TASK_FIELDS.ID_STAFF] || "",
-        staffName: record.fieldData[TASK_FIELDS.STAFF_NAME] || "",
-        projectId: record.fieldData[TASK_FIELDS.ID_PROJECT] || "",
-        dateDue: record.fieldData[TASK_FIELDS.DATE_DUE] || "",
-        timeDue: record.fieldData[TASK_FIELDS.TIME_DUE] || "",
-        dateEnd: record.fieldData[TASK_FIELDS.DATE_END] || "",
-        timeEnd: record.fieldData[TASK_FIELDS.TIME_END] || "",
-        priority: record.fieldData[TASK_FIELDS.PRIORITY] || "Medium",
-        status: record.fieldData[TASK_FIELDS.STATUS] || "Normal",
-        completionPercentage: Number(record.fieldData[TASK_FIELDS.TASK_COMPLETION_PERCENTAGE]) || 0,
-        notes: record.fieldData[TASK_FIELDS.NOTES] || "",
-        category: record.fieldData[TASK_FIELDS.CATEGORY] || "",
-        isComplete: record.fieldData[TASK_FIELDS.FLAG_COMPLETE] === "1",
-      }))
-      .filter((task) => {
-        const status = task.status.toLowerCase()
-        return status !== "closed" && status !== "done" && status !== "completed" && !task.isComplete
-      })
+    const tasks: Task[] = result.response.data.map((record: any) => ({
+      id: record.fieldData[TASK_FIELDS.ID_TASK] || "",
+      recordId: record.recordId,
+      item: record.fieldData[TASK_FIELDS.ITEM] || "",
+      description: record.fieldData[TASK_FIELDS.DESCRIPTION] || "",
+      staffId: record.fieldData[TASK_FIELDS.ID_STAFF] || "",
+      staffName: record.fieldData[TASK_FIELDS.STAFF_NAME] || "",
+      projectId: record.fieldData[TASK_FIELDS.ID_PROJECT] || "",
+      dateDue: record.fieldData[TASK_FIELDS.DATE_DUE] || "",
+      timeDue: record.fieldData[TASK_FIELDS.TIME_DUE] || "",
+      dateEnd: record.fieldData[TASK_FIELDS.DATE_END] || "",
+      timeEnd: record.fieldData[TASK_FIELDS.TIME_END] || "",
+      priority: record.fieldData[TASK_FIELDS.PRIORITY] || "Medium",
+      status: record.fieldData[TASK_FIELDS.STATUS] || "Normal",
+      statusDisplay: record.fieldData[TASK_FIELDS.STATUS_DISPLAY_CALC] || "New", // Get automatic status
+      completionPercentage: Number(record.fieldData[TASK_FIELDS.TASK_COMPLETION_PERCENTAGE]) || 0,
+      notes: record.fieldData[TASK_FIELDS.NOTES] || "",
+      category: record.fieldData[TASK_FIELDS.CATEGORY] || "",
+      isComplete: record.fieldData[TASK_FIELDS.FLAG_COMPLETE] === "1",
+    }))
 
     console.log("[v0] Parsed active tasks:", tasks.length)
     return tasks
@@ -99,7 +103,7 @@ export async function getEmployeeTasks(employeeId: string): Promise<Task[]> {
   }
 }
 
-// Update task completion percentage
+// This triggers FileMaker's automatic status calculation to mark task as "Completed"
 export async function updateTaskCompletion(
   recordId: string,
   completionPercentage: number,
@@ -107,9 +111,32 @@ export async function updateTaskCompletion(
   console.log("[v0] Updating task completion:", recordId, completionPercentage)
 
   try {
-    await fileMaker.updateRecord(TASKS_LAYOUT, recordId, {
+    const updateData: Record<string, string> = {
       [TASK_FIELDS.TASK_COMPLETION_PERCENTAGE]: completionPercentage.toString(),
-    })
+    }
+
+    // This triggers FileMaker's status_display_calc to change to "Completed"
+    if (completionPercentage >= 100) {
+      const now = new Date()
+      const dateStr = now.toLocaleDateString("en-US", {
+        month: "2-digit",
+        day: "2-digit",
+        year: "numeric",
+      })
+      const timeStr = now.toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      })
+
+      updateData[TASK_FIELDS.DATE_COMPLETED] = dateStr
+      updateData[TASK_FIELDS.TIME_COMPLETED] = timeStr
+      updateData[TASK_FIELDS.FLAG_COMPLETE] = "1"
+
+      console.log("[v0] Task completed - setting Date_Completed:", dateStr, timeStr)
+    }
+
+    await fileMaker.updateRecord(TASKS_LAYOUT, recordId, updateData)
 
     return { success: true }
   } catch (error) {

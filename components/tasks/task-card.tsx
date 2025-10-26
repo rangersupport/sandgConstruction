@@ -40,6 +40,19 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
     }
   }
 
+  const getStatusDisplayColor = (statusDisplay: string) => {
+    switch (statusDisplay.toLowerCase()) {
+      case "new":
+        return "bg-blue-100 text-blue-800"
+      case "pending":
+        return "bg-yellow-100 text-yellow-800"
+      case "completed":
+        return "bg-green-100 text-green-800"
+      default:
+        return "bg-gray-100 text-gray-800"
+    }
+  }
+
   // Format date
   const formatDate = (date: string) => {
     if (!date) return "No date"
@@ -72,6 +85,9 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
             {task.priority}
           </Badge>
           <Badge className={getStatusColor(task.status)}>{task.status}</Badge>
+          <Badge variant="outline" className={getStatusDisplayColor(task.statusDisplay)}>
+            {task.statusDisplay}
+          </Badge>
         </div>
 
         {/* Due Date */}
