@@ -269,6 +269,97 @@ export async function adminLogin(email: string, password: string): Promise<AuthR
   }
 }
 
+// Admin login alternative that searches by multiple fields
+export async function adminLoginAlternative(email: string, password: string): Promise<AuthResult> {
+  try {
+    console.log("[v0] adminLoginAlt: Starting alternative login for:", email)
+
+    // First, try to get all records and find the user manually
+    const allStaff = await fileMaker.getRecords(FILEMAKER_LAYOUTS.EMPLOYEES, { _limit: 100 })
+
+    console.log("[v0] adminLoginAlt: Retrieved", allStaff.response.data?.length, "staff records")
+
+    // Find the user by email (case-insensitive, trimmed)
+    const normalizedEmail = email.toLowerCase().trim()
+    const matchingRecord = allStaff.response.data?.find((record) => {
+      const recordEmail = String(record.fieldData[EMPLOYEE_FIELDS.EMAIL] || "")
+        .toLowerCase()
+        .trim()
+      return recordEmail === normalizedEmail
+    })
+
+    if (!matchingRecord) {
+      console.log("[v0] adminLoginAlt: No user found with email:", email)
+      console.log(
+        "[v0] adminLoginAlt: Available emails:",
+        allStaff.response.data?.map((r) => r.fieldData[EMPLOYEE_FIELDS.EMAIL]).filter(Boolean),
+      )
+      return { success: false, error: "Invalid credentials" }
+    }
+
+    const admin = matchingRecord.fieldData
+
+    console.log("[v0] adminLoginAlt: Found user:", {
+      id: admin[EMPLOYEE_FIELDS.ID],
+      name: admin[EMPLOYEE_FIELDS.NAME_FULL],
+      email: admin[EMPLOYEE_FIELDS.EMAIL],
+      webAdminRole: admin[EMPLOYEE_FIELDS.WEB_ADMIN_ROLE],
+      pinHash: admin[EMPLOYEE_FIELDS.PIN_HASH],
+    })
+
+    const webAdminRole = admin[EMPLOYEE_FIELDS.WEB_ADMIN_ROLE]
+    if (webAdminRole !== "admin" && webAdminRole !== "super_admin") {
+      console.log("[v0] adminLoginAlt: User does not have admin role. Current role:", webAdminRole)
+      return { success: false, error: "Unauthorized: Admin access required" }
+    }
+
+    const storedPassword = String(admin[EMPLOYEE_FIELDS.PIN_HASH] || "")
+    const enteredPassword = String(password)
+
+    console.log("[v0] adminLoginAlt: Password comparison:", {
+      stored: storedPassword,
+      entered: enteredPassword,
+      match: storedPassword === enteredPassword,
+    })
+
+    if (storedPassword !== enteredPassword) {
+      console.log("[v0] adminLoginAlt: Password mismatch")
+      return { success: false, error: "Invalid credentials" }
+    }
+
+    console.log("[v0] adminLoginAlt: Login successful")
+
+    const cookieStore = await cookies()
+    cookieStore.set(
+      "admin_session",
+      JSON.stringify({
+        id: admin[EMPLOYEE_FIELDS.ID],
+        email: admin[EMPLOYEE_FIELDS.EMAIL],
+        name: admin[EMPLOYEE_FIELDS.NAME_FULL],
+        role: webAdminRole,
+      }),
+      {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        maxAge: 60 * 60 * 24 * 7,
+        sameSite: "lax",
+      },
+    )
+
+    return {
+      success: true,
+      user: {
+        id: admin[EMPLOYEE_FIELDS.ID],
+        email: admin[EMPLOYEE_FIELDS.EMAIL],
+        role: webAdminRole,
+      },
+    }
+  } catch (error) {
+    console.error("[v0] adminLoginAlt error:", error)
+    return { success: false, error: "An unexpected error occurred" }
+  }
+}
+
 // Get current employee from session
 export async function getCurrentEmployee() {
   try {

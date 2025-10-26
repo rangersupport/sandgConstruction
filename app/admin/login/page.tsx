@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { adminLogin } from "@/lib/actions/auth-actions"
+import { adminLoginAlternative } from "@/lib/actions/auth-actions"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -30,7 +30,7 @@ export default function AdminLoginPage() {
     console.log("[v0] Admin login: Password value:", password)
 
     try {
-      const result = await adminLogin(email, password)
+      const result = await adminLoginAlternative(email, password)
 
       console.log("[v0] Admin login: Full result object:", result)
       console.log("[v0] Admin login: Result:", { success: result.success, error: result.error })
