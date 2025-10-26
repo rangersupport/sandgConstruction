@@ -167,19 +167,34 @@ export async function adminLogin(email: string, password: string): Promise<AuthR
     const result = await fileMaker.findRecords(FILEMAKER_LAYOUTS.EMPLOYEES, [{ [EMPLOYEE_FIELDS.EMAIL]: email }])
 
     if (!result.response.data || result.response.data.length === 0) {
+      console.log("[v0] adminLogin: No user found with email:", email)
       return { success: false, error: "Invalid credentials" }
     }
 
     const admin = result.response.data[0].fieldData
 
+    console.log("[v0] adminLogin: Found user:", {
+      id: admin[EMPLOYEE_FIELDS.ID],
+      name: admin[EMPLOYEE_FIELDS.NAME_FULL],
+      email: admin[EMPLOYEE_FIELDS.EMAIL],
+      webAdminRole: admin[EMPLOYEE_FIELDS.WEB_ADMIN_ROLE],
+      hasPinHash: !!admin[EMPLOYEE_FIELDS.PIN_HASH],
+      pinHashValue: admin[EMPLOYEE_FIELDS.PIN_HASH],
+      enteredPassword: password,
+    })
+
     const webAdminRole = admin[EMPLOYEE_FIELDS.WEB_ADMIN_ROLE]
     if (webAdminRole !== "admin" && webAdminRole !== "super_admin") {
-      return { success: false, error: "Unauthorized: Admin access required" }
+      console.log("[v0] adminLogin: User does not have admin role. Current role:", webAdminRole)
+      return { success: false, error: "Unauthorized: Admin access required. Please contact your administrator." }
     }
 
     if (admin[EMPLOYEE_FIELDS.PIN_HASH] !== password) {
+      console.log("[v0] adminLogin: Password mismatch. Stored:", admin[EMPLOYEE_FIELDS.PIN_HASH], "Entered:", password)
       return { success: false, error: "Invalid credentials" }
     }
+
+    console.log("[v0] adminLogin: Login successful for:", admin[EMPLOYEE_FIELDS.NAME_FULL])
 
     const cookieStore = await cookies()
     cookieStore.set(
