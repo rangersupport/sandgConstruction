@@ -105,11 +105,6 @@ export default function AdminLoginPage() {
                     Employee Login
                   </Button>
                 </Link>
-                <Link href="/admin/setup">
-                  <Button variant="ghost" className="w-full text-sm" type="button">
-                    First time? Create admin account
-                  </Button>
-                </Link>
               </div>
             </form>
           </CardContent>
