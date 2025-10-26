@@ -19,10 +19,6 @@ export default async function TasksPage() {
 
   const tasks = await getEmployeeTasks(employeeId)
 
-  // Separate tasks by completion status
-  const activeTasks = tasks.filter((task) => !task.isComplete)
-  const completedTasks = tasks.filter((task) => task.isComplete)
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4">
       <div className="max-w-6xl mx-auto space-y-6">
@@ -30,9 +26,7 @@ export default async function TasksPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-slate-900">My Tasks</h1>
-            <p className="text-slate-600 mt-1">
-              {activeTasks.length} active • {completedTasks.length} completed
-            </p>
+            <p className="text-slate-600 mt-1">{tasks.length} active tasks</p>
           </div>
           <Button variant="outline" asChild>
             <Link href="/dashboard">
@@ -43,23 +37,11 @@ export default async function TasksPage() {
         </div>
 
         {/* Active Tasks */}
-        {activeTasks.length > 0 && (
+        {tasks.length > 0 && (
           <div className="space-y-4">
             <h2 className="text-xl font-semibold text-slate-900">Active Tasks</h2>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {activeTasks.map((task) => (
-                <TaskCard key={task.recordId} task={task} />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Completed Tasks */}
-        {completedTasks.length > 0 && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold text-slate-900">Completed Tasks</h2>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {completedTasks.map((task) => (
+              {tasks.map((task) => (
                 <TaskCard key={task.recordId} task={task} />
               ))}
             </div>
@@ -69,7 +51,7 @@ export default async function TasksPage() {
         {/* Empty State */}
         {tasks.length === 0 && (
           <div className="text-center py-12">
-            <p className="text-lg text-slate-600">No tasks assigned yet</p>
+            <p className="text-lg text-slate-600">No active tasks assigned</p>
             <p className="text-sm text-slate-500 mt-2">Tasks assigned to you will appear here</p>
           </div>
         )}

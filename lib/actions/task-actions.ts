@@ -23,6 +23,7 @@ const TASK_FIELDS = {
   NOTES: "Notes",
   CATEGORY: "Category",
   FLAG_COMPLETE: "Flag_Complete",
+  DONE: "Done",
 }
 
 export interface Task {
@@ -54,6 +55,7 @@ export async function getEmployeeTasks(employeeId: string): Promise<Task[]> {
     const result = await fileMaker.findRecords(TASKS_LAYOUT, [
       {
         [TASK_FIELDS.ID_STAFF]: employeeId,
+        [TASK_FIELDS.FLAG_COMPLETE]: "0", // Only get incomplete tasks
       },
     ])
 
@@ -64,27 +66,32 @@ export async function getEmployeeTasks(employeeId: string): Promise<Task[]> {
       return []
     }
 
-    const tasks: Task[] = result.response.data.map((record: any) => ({
-      id: record.fieldData[TASK_FIELDS.ID_TASK] || "",
-      recordId: record.recordId,
-      item: record.fieldData[TASK_FIELDS.ITEM] || "",
-      description: record.fieldData[TASK_FIELDS.DESCRIPTION] || "",
-      staffId: record.fieldData[TASK_FIELDS.ID_STAFF] || "",
-      staffName: record.fieldData[TASK_FIELDS.STAFF_NAME] || "",
-      projectId: record.fieldData[TASK_FIELDS.ID_PROJECT] || "",
-      dateDue: record.fieldData[TASK_FIELDS.DATE_DUE] || "",
-      timeDue: record.fieldData[TASK_FIELDS.TIME_DUE] || "",
-      dateEnd: record.fieldData[TASK_FIELDS.DATE_END] || "",
-      timeEnd: record.fieldData[TASK_FIELDS.TIME_END] || "",
-      priority: record.fieldData[TASK_FIELDS.PRIORITY] || "Medium",
-      status: record.fieldData[TASK_FIELDS.STATUS] || "Normal",
-      completionPercentage: Number(record.fieldData[TASK_FIELDS.TASK_COMPLETION_PERCENTAGE]) || 0,
-      notes: record.fieldData[TASK_FIELDS.NOTES] || "",
-      category: record.fieldData[TASK_FIELDS.CATEGORY] || "",
-      isComplete: record.fieldData[TASK_FIELDS.FLAG_COMPLETE] === "1",
-    }))
+    const tasks: Task[] = result.response.data
+      .map((record: any) => ({
+        id: record.fieldData[TASK_FIELDS.ID_TASK] || "",
+        recordId: record.recordId,
+        item: record.fieldData[TASK_FIELDS.ITEM] || "",
+        description: record.fieldData[TASK_FIELDS.DESCRIPTION] || "",
+        staffId: record.fieldData[TASK_FIELDS.ID_STAFF] || "",
+        staffName: record.fieldData[TASK_FIELDS.STAFF_NAME] || "",
+        projectId: record.fieldData[TASK_FIELDS.ID_PROJECT] || "",
+        dateDue: record.fieldData[TASK_FIELDS.DATE_DUE] || "",
+        timeDue: record.fieldData[TASK_FIELDS.TIME_DUE] || "",
+        dateEnd: record.fieldData[TASK_FIELDS.DATE_END] || "",
+        timeEnd: record.fieldData[TASK_FIELDS.TIME_END] || "",
+        priority: record.fieldData[TASK_FIELDS.PRIORITY] || "Medium",
+        status: record.fieldData[TASK_FIELDS.STATUS] || "Normal",
+        completionPercentage: Number(record.fieldData[TASK_FIELDS.TASK_COMPLETION_PERCENTAGE]) || 0,
+        notes: record.fieldData[TASK_FIELDS.NOTES] || "",
+        category: record.fieldData[TASK_FIELDS.CATEGORY] || "",
+        isComplete: record.fieldData[TASK_FIELDS.FLAG_COMPLETE] === "1",
+      }))
+      .filter((task) => {
+        const status = task.status.toLowerCase()
+        return status !== "closed" && status !== "done" && status !== "completed" && !task.isComplete
+      })
 
-    console.log("[v0] Parsed tasks:", tasks.length)
+    console.log("[v0] Parsed active tasks:", tasks.length)
     return tasks
   } catch (error) {
     console.error("[v0] Error fetching employee tasks:", error)
