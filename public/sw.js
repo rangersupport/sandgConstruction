@@ -1,11 +1,11 @@
 // Service Worker for S&G Construction Time Clock
-// Version: 1.0.0
+// Version: 1.0.1
 
-const CACHE_VERSION = "v1"
+const CACHE_VERSION = "v1.0.1"
 const CACHE_NAME = `sandg-timeclock-${CACHE_VERSION}`
 
 // Assets to cache on install
-const STATIC_ASSETS = ["/", "/employee/login", "/employee", "/offline"]
+const STATIC_ASSETS = ["/offline"]
 
 // Install event - cache static assets
 self.addEventListener("install", (event) => {
@@ -64,10 +64,15 @@ self.addEventListener("fetch", (event) => {
     return
   }
 
+  const authRoutes = ["/employee/login", "/admin/login", "/api/auth"]
+  if (authRoutes.some((route) => url.pathname.startsWith(route))) {
+    return
+  }
+
   // Network-first strategy for API calls
   if (url.pathname.startsWith("/api/")) {
     event.respondWith(
-      fetch(request, { redirect: "follow" }).catch(() => {
+      fetch(request).catch(() => {
         return new Response(JSON.stringify({ error: "Offline - request queued" }), {
           status: 503,
           headers: { "Content-Type": "application/json" },
@@ -84,10 +89,9 @@ self.addEventListener("fetch", (event) => {
         return cachedResponse
       }
 
-      return fetch(request, { redirect: "follow" })
+      return fetch(request)
         .then((response) => {
-          // Don't cache non-successful responses or redirects
-          if (!response || response.status !== 200 || response.type === "error") {
+          if (!response || response.status !== 200 || response.type === "error" || response.type === "opaqueredirect") {
             return response
           }
 
