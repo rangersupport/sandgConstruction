@@ -60,7 +60,6 @@ export default function AdminLoginPage() {
                 <Input
                   id="loginNumber"
                   type="text"
-                  placeholder="6085"
                   required
                   value={loginNumber}
                   onChange={(e) => setLoginNumber(e.target.value)}
