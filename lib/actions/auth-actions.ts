@@ -16,6 +16,7 @@ export interface AuthResult {
     role: string
   }
   mustChangePIN?: boolean
+  token?: string // Added token to AuthResult interface
 }
 
 function hashPIN(pin: string): string {
@@ -345,7 +346,7 @@ export async function adminLoginAlternative(email: string, password: string): Pr
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         maxAge: 60 * 60 * 24 * 7,
-        sameSite: "lax",
+        sameSite: "none", // Changed to "none" to allow iframe access
         path: "/",
       },
     )
@@ -611,5 +612,112 @@ export async function adminResetEmployeePIN(employeeId: string, newPIN: string):
   } catch (error) {
     console.error("[v0] Admin reset PIN error:", error)
     return { success: false, error: "Failed to reset PIN" }
+  }
+}
+
+export async function adminLoginByLoginNumberWithToken(
+  loginNumber: string,
+  password: string,
+): Promise<AuthResult & { token?: string }> {
+  try {
+    console.log("[v0] adminLoginByLoginNumberWithToken: Starting login for:", loginNumber)
+
+    const result = await fileMaker.findRecords(FILEMAKER_LAYOUTS.EMPLOYEES, [
+      { [EMPLOYEE_FIELDS.EMPLOYEE_LOGIN_NUMBER]: loginNumber },
+    ])
+
+    if (!result.response.data || result.response.data.length === 0) {
+      console.log("[v0] adminLoginByLoginNumberWithToken: No user found")
+      return { success: false, error: "Invalid credentials" }
+    }
+
+    const admin = result.response.data[0].fieldData
+
+    const webAdminRole = String(admin[EMPLOYEE_FIELDS.WEB_ADMIN_ROLE] || "")
+      .toLowerCase()
+      .trim()
+
+    console.log("[v0] adminLoginByLoginNumberWithToken: Role check:", {
+      rawRole: admin[EMPLOYEE_FIELDS.WEB_ADMIN_ROLE],
+      normalizedRole: webAdminRole,
+    })
+
+    if (webAdminRole !== "admin" && webAdminRole !== "super_admin") {
+      console.log("[v0] adminLoginByLoginNumberWithToken: Invalid role")
+      return {
+        success: false,
+        error: `Unauthorized: Admin access required. Your role is: ${admin[EMPLOYEE_FIELDS.WEB_ADMIN_ROLE] || "not set"}`,
+      }
+    }
+
+    const storedPassword = String(admin[EMPLOYEE_FIELDS.PIN_HASH] || "")
+    const enteredPassword = String(password)
+
+    if (storedPassword !== enteredPassword) {
+      console.log("[v0] adminLoginByLoginNumberWithToken: Password mismatch")
+      return { success: false, error: "Invalid credentials" }
+    }
+
+    console.log("[v0] adminLoginByLoginNumberWithToken: Login successful")
+
+    // Create session data
+    const sessionData = {
+      id: admin[EMPLOYEE_FIELDS.ID],
+      email: admin[EMPLOYEE_FIELDS.EMAIL] || "",
+      name: admin[EMPLOYEE_FIELDS.NAME_FULL],
+      role: webAdminRole || "admin",
+      loginNumber: admin[EMPLOYEE_FIELDS.EMPLOYEE_LOGIN_NUMBER],
+      timestamp: Date.now(),
+    }
+
+    // Try to set cookie (will work in normal browser)
+    try {
+      const cookieStore = await cookies()
+      cookieStore.set("admin_session", JSON.stringify(sessionData), {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        maxAge: 60 * 60 * 24 * 7,
+        sameSite: "none", // Changed to "none" to allow iframe access
+        path: "/",
+      })
+    } catch (cookieError) {
+      console.log("[v0] adminLoginByLoginNumberWithToken: Cookie setting failed (expected in iframe):", cookieError)
+    }
+
+    // Also return a token for iframe/WebDirect usage
+    const token = Buffer.from(JSON.stringify(sessionData)).toString("base64")
+
+    return {
+      success: true,
+      token, // Return token for URL-based auth
+      user: {
+        id: admin[EMPLOYEE_FIELDS.ID],
+        email: admin[EMPLOYEE_FIELDS.EMAIL] || admin[EMPLOYEE_FIELDS.NAME_FULL],
+        role: webAdminRole || "admin",
+      },
+    }
+  } catch (error) {
+    console.error("[v0] adminLoginByLoginNumberWithToken error:", error)
+    return { success: false, error: "An unexpected error occurred" }
+  }
+}
+
+export async function verifySessionToken(token: string) {
+  try {
+    const sessionData = JSON.parse(Buffer.from(token, "base64").toString("utf-8"))
+
+    // Check if token is expired (7 days)
+    const tokenAge = Date.now() - sessionData.timestamp
+    const maxAge = 60 * 60 * 24 * 7 * 1000 // 7 days in milliseconds
+
+    if (tokenAge > maxAge) {
+      console.log("[v0] verifySessionToken: Token expired")
+      return null
+    }
+
+    return sessionData
+  } catch (error) {
+    console.error("[v0] verifySessionToken error:", error)
+    return null
   }
 }

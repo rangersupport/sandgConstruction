@@ -5,6 +5,8 @@ import { getActiveTimeEntries } from "@/lib/actions/time-entry-actions"
 import { getAllEmployees } from "@/lib/actions/filemaker-employee-actions"
 import { AdminClockOutButton } from "@/components/admin/admin-clock-out-button"
 import { ActiveEmployeesMap } from "@/components/map/active-employees-map"
+import { getCurrentAdmin } from "@/lib/actions/auth-actions"
+import { IframeAuthCheck } from "@/components/admin/iframe-auth-check"
 
 type ActiveWorkerRow = {
   id: string
@@ -43,6 +45,12 @@ function formatDuration(hours: number): string {
 }
 
 export default async function DashboardPage() {
+  const admin = await getCurrentAdmin()
+
+  if (!admin) {
+    return <IframeAuthCheck />
+  }
+
   const activeWorkers = await getActiveTimeEntries()
   const employees = await getAllEmployees()
 

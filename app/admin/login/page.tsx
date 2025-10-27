@@ -2,8 +2,8 @@
 
 import type React from "react"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { adminLoginByLoginNumber } from "@/lib/actions/auth-actions"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -18,7 +18,13 @@ export default function AdminLoginPage() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [isInIframe, setIsInIframe] = useState(false)
   const router = useRouter()
+  const searchParams = useSearchParams()
+
+  useEffect(() => {
+    setIsInIframe(window.self !== window.top)
+  }, [])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -29,6 +35,20 @@ export default function AdminLoginPage() {
       const result = await adminLoginByLoginNumber(loginNumber, password)
 
       if (result.success) {
+        if (isInIframe) {
+          console.log("[v0] Admin login: In iframe, using token-based auth")
+          // For iframe, we'll use localStorage as fallback
+          if (result.user) {
+            localStorage.setItem(
+              "admin_session",
+              JSON.stringify({
+                ...result.user,
+                loginNumber,
+                timestamp: Date.now(),
+              }),
+            )
+          }
+        }
         router.push("/dashboard")
         router.refresh()
       } else {
@@ -52,6 +72,7 @@ export default function AdminLoginPage() {
             </div>
             <CardTitle className="text-2xl">Admin Login</CardTitle>
             <CardDescription>S&G Construction Dashboard</CardDescription>
+            {isInIframe && <div className="mt-2 text-xs text-muted-foreground">FileMaker WebDirect Mode</div>}
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
