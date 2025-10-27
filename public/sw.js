@@ -67,7 +67,7 @@ self.addEventListener("fetch", (event) => {
   // Network-first strategy for API calls
   if (url.pathname.startsWith("/api/")) {
     event.respondWith(
-      fetch(request).catch(() => {
+      fetch(request, { redirect: "follow" }).catch(() => {
         return new Response(JSON.stringify({ error: "Offline - request queued" }), {
           status: 503,
           headers: { "Content-Type": "application/json" },
@@ -84,9 +84,9 @@ self.addEventListener("fetch", (event) => {
         return cachedResponse
       }
 
-      return fetch(request)
+      return fetch(request, { redirect: "follow" })
         .then((response) => {
-          // Don't cache non-successful responses
+          // Don't cache non-successful responses or redirects
           if (!response || response.status !== 200 || response.type === "error") {
             return response
           }
