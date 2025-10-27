@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from "react"
 import { useGeolocation } from "@/lib/hooks/use-geolocation"
+import { useOfflineStatus } from "@/lib/hooks/use-offline-status"
+import { offlineDB, type PendingTimeEntry } from "@/lib/offline/db"
+import { syncManager } from "@/lib/offline/sync-manager"
 import {
   clockIn,
   clockOut,
@@ -24,7 +27,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Clock, MapPin, Loader2, AlertCircle, CheckCircle2, AlertTriangle } from "lucide-react"
+import { Clock, MapPin, Loader2, AlertCircle, CheckCircle2, AlertTriangle, Wifi, WifiOff } from "lucide-react"
 import { LocationPermissionDialog } from "@/components/employee/location-permission-dialog"
 import type { Project, EmployeeStatus } from "@/lib/types/database"
 
@@ -35,6 +38,7 @@ interface TimeClockProps {
 
 export function TimeClock({ employeeId, employeeName }: TimeClockProps) {
   const { coordinates, error: gpsError, loading: gpsLoading, requestLocation } = useGeolocation()
+  const { isOnline, wasOffline } = useOfflineStatus()
 
   const [status, setStatus] = useState<EmployeeStatus | null>(null)
   const [projects, setProjects] = useState<Project[]>([])
@@ -43,13 +47,22 @@ export function TimeClock({ employeeId, employeeName }: TimeClockProps) {
   const [elapsedTime, setElapsedTime] = useState<string>("0:00")
   const [showClockOutDialog, setShowClockOutDialog] = useState(false)
   const [showLocationDialog, setShowLocationDialog] = useState(false)
+  const [pendingCount, setPendingCount] = useState<number>(0)
 
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: "success" | "error" | "warning"; text: string } | null>(null)
 
   useEffect(() => {
     loadData()
+    loadPendingCount()
   }, [employeeId])
+
+  useEffect(() => {
+    if (wasOffline && isOnline) {
+      console.log("[TimeClock] Back online, triggering sync")
+      handleSync()
+    }
+  }, [wasOffline, isOnline])
 
   useEffect(() => {
     if (!status?.is_clocked_in || !status.clock_in) return
@@ -74,6 +87,15 @@ export function TimeClock({ employeeId, employeeName }: TimeClockProps) {
       setShowLocationDialog(true)
     }
   }, [gpsError])
+
+  async function loadPendingCount() {
+    try {
+      const count = await offlineDB.getEntryCount()
+      setPendingCount(count)
+    } catch (error) {
+      console.error("[TimeClock] Error loading pending count:", error)
+    }
+  }
 
   async function loadData() {
     try {
@@ -108,6 +130,23 @@ export function TimeClock({ employeeId, employeeName }: TimeClockProps) {
     }
   }
 
+  async function handleSync() {
+    setLoading(true)
+    setMessage({ type: "warning", text: "Syncing pending entries..." })
+
+    const result = await syncManager.syncPendingEntries()
+
+    if (result.success) {
+      setMessage({ type: "success", text: result.message })
+      await loadPendingCount()
+      await loadData()
+    } else {
+      setMessage({ type: "error", text: result.message })
+    }
+
+    setLoading(false)
+  }
+
   async function handleClockIn() {
     if (status?.is_clocked_in) {
       setShowClockOutDialog(true)
@@ -127,6 +166,41 @@ export function TimeClock({ employeeId, employeeName }: TimeClockProps) {
 
     setLoading(true)
     setMessage(null)
+
+    if (!isOnline) {
+      try {
+        const pendingEntry: PendingTimeEntry = {
+          id: `pending_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          employeeId,
+          employeeName,
+          projectId: selectedProjectId,
+          projectName: projects.find((p) => p.id === selectedProjectId)?.name || "Unknown Project",
+          actionType: "clock_in",
+          timestamp: new Date().toISOString(),
+          latitude: coordinates.latitude,
+          longitude: coordinates.longitude,
+          accuracy: coordinates.accuracy,
+          status: "pending",
+          retryCount: 0,
+          createdAt: new Date().toISOString(),
+        }
+
+        await offlineDB.addPendingEntry(pendingEntry)
+        await loadPendingCount()
+
+        setMessage({
+          type: "warning",
+          text: "You're offline. Clock-in saved and will sync when online.",
+        })
+        setLoading(false)
+        return
+      } catch (error) {
+        console.error("[TimeClock] Error saving offline clock-in:", error)
+        setMessage({ type: "error", text: "Failed to save offline clock-in" })
+        setLoading(false)
+        return
+      }
+    }
 
     const result = await clockIn({
       employeeId,
@@ -173,6 +247,41 @@ export function TimeClock({ employeeId, employeeName }: TimeClockProps) {
     setMessage(null)
     setShowClockOutDialog(false)
 
+    if (!isOnline) {
+      try {
+        const pendingEntry: PendingTimeEntry = {
+          id: `pending_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          employeeId,
+          employeeName,
+          timeEntryId: status.time_entry_id,
+          projectName: status.project_name || undefined,
+          actionType: "clock_out",
+          timestamp: new Date().toISOString(),
+          latitude: coordinates.latitude,
+          longitude: coordinates.longitude,
+          accuracy: coordinates.accuracy,
+          status: "pending",
+          retryCount: 0,
+          createdAt: new Date().toISOString(),
+        }
+
+        await offlineDB.addPendingEntry(pendingEntry)
+        await loadPendingCount()
+
+        setMessage({
+          type: "warning",
+          text: "You're offline. Clock-out saved and will sync when online.",
+        })
+        setLoading(false)
+        return
+      } catch (error) {
+        console.error("[TimeClock] Error saving offline clock-out:", error)
+        setMessage({ type: "error", text: "Failed to save offline clock-out" })
+        setLoading(false)
+        return
+      }
+    }
+
     const result = await clockOut({
       timeEntryId: status.time_entry_id,
       latitude: coordinates.latitude,
@@ -192,9 +301,37 @@ export function TimeClock({ employeeId, employeeName }: TimeClockProps) {
 
   return (
     <div className="w-full max-w-2xl mx-auto p-4 space-y-6">
+      {!isOnline && (
+        <Alert className="border-orange-500 bg-orange-50 dark:bg-orange-950">
+          <WifiOff className="h-5 w-5 text-orange-600" />
+          <AlertDescription className="text-orange-900 dark:text-orange-100">
+            <div className="font-semibold">You're Offline</div>
+            <div className="text-sm mt-1">
+              Clock-in/out actions will be saved locally and synced when you're back online.
+            </div>
+            {pendingCount > 0 && (
+              <div className="text-sm mt-2 font-semibold">{pendingCount} pending entries waiting to sync</div>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {wasOffline && isOnline && (
+        <Alert className="border-green-500 bg-green-50 dark:bg-green-950">
+          <Wifi className="h-5 w-5 text-green-600" />
+          <AlertDescription className="text-green-900 dark:text-green-100">
+            <div className="font-semibold">Back Online</div>
+            <div className="text-sm mt-1">Syncing pending entries...</div>
+          </AlertDescription>
+        </Alert>
+      )}
+
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl">Welcome, {employeeName}</CardTitle>
+          <CardTitle className="text-2xl flex items-center justify-between">
+            <span>Welcome, {employeeName}</span>
+            {isOnline ? <Wifi className="w-5 h-5 text-green-500" /> : <WifiOff className="w-5 h-5 text-orange-500" />}
+          </CardTitle>
           <CardDescription>S&G Construction Time Clock</CardDescription>
         </CardHeader>
       </Card>
@@ -341,6 +478,13 @@ export function TimeClock({ employeeId, employeeName }: TimeClockProps) {
             {loading && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
             {status?.is_clocked_in ? "Clock Out" : "Clock In"}
           </Button>
+
+          {pendingCount > 0 && isOnline && (
+            <Button className="w-full bg-transparent" variant="outline" onClick={handleSync} disabled={loading}>
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Sync {pendingCount} Pending {pendingCount === 1 ? "Entry" : "Entries"}
+            </Button>
+          )}
 
           {message && (
             <Alert
