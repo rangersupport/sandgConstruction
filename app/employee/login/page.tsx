@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2 } from "lucide-react"
 import Link from "next/link"
+import { IOSInstallPrompt } from "@/components/pwa/ios-install-prompt"
 
 export default function EmployeeLoginPage() {
   const [employeeNumber, setEmployeeNumber] = useState("")
@@ -51,6 +52,8 @@ export default function EmployeeLoginPage() {
 
   return (
     <div className="flex min-h-screen w-full items-center justify-center bg-background p-6">
+      <IOSInstallPrompt />
+
       <div className="w-full max-w-sm">
         <Card>
           <CardHeader className="text-center">
