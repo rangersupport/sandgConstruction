@@ -19,17 +19,46 @@ export default function EmployeePage() {
   const router = useRouter()
 
   useEffect(() => {
-    const storedEmployeeId = sessionStorage.getItem("employee_id")
-    const storedEmployeeName = sessionStorage.getItem("employee_name")
+    const checkAuth = async () => {
+      console.log("[v0] Employee page: Checking authentication")
 
-    if (!storedEmployeeId || !storedEmployeeName) {
-      router.push("/employee/login")
-      return
+      const storedEmployeeId = sessionStorage.getItem("employee_id")
+      const storedEmployeeName = sessionStorage.getItem("employee_name")
+
+      console.log("[v0] Employee page: SessionStorage data:", {
+        hasId: !!storedEmployeeId,
+        hasName: !!storedEmployeeName,
+      })
+
+      // If no session data, redirect to login
+      if (!storedEmployeeId || !storedEmployeeName) {
+        console.log("[v0] Employee page: No session data, redirecting to login")
+        router.push("/employee/login")
+        return
+      }
+
+      // Verify the cookie exists by checking with the server
+      try {
+        const response = await fetch("/api/auth/check-employee-session")
+        if (!response.ok) {
+          console.log("[v0] Employee page: Cookie check failed, redirecting to login")
+          sessionStorage.removeItem("employee_id")
+          sessionStorage.removeItem("employee_name")
+          router.push("/employee/login")
+          return
+        }
+
+        console.log("[v0] Employee page: Authentication verified")
+        setEmployeeId(storedEmployeeId)
+        setEmployeeName(storedEmployeeName)
+        setLoading(false)
+      } catch (error) {
+        console.error("[v0] Employee page: Error checking session:", error)
+        router.push("/employee/login")
+      }
     }
 
-    setEmployeeId(storedEmployeeId)
-    setEmployeeName(storedEmployeeName)
-    setLoading(false)
+    checkAuth()
   }, [router])
 
   if (loading || !employeeId || !employeeName) {
