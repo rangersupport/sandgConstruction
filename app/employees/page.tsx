@@ -6,11 +6,22 @@ import { getAllEmployeesFileMaker } from "@/lib/actions/filemaker-employee-actio
 import { getAllEmployeesWithStatus } from "@/lib/actions/admin-actions"
 import { getActiveProjects } from "@/lib/actions/time-entry-actions"
 import { EmployeeListWithActions } from "@/components/employees/employee-list-with-actions"
+import { getCurrentAdmin } from "@/lib/actions/auth-actions"
+import { redirect } from "next/navigation"
 
 export const dynamic = "force-dynamic"
 export const revalidate = 0
 
 export default async function EmployeesPage() {
+  const admin = await getCurrentAdmin()
+
+  if (!admin) {
+    console.log("[v0] EmployeesPage: No admin session found, redirecting to login")
+    redirect("/admin/login")
+  }
+
+  console.log("[v0] EmployeesPage: Admin authenticated:", admin.name)
+
   const [employeesWithStatus, projectsResult] = await Promise.all([getAllEmployeesWithStatus(), getActiveProjects()])
 
   // Fallback to FileMaker employees if status fetch fails

@@ -19,7 +19,6 @@ export async function middleware(request: NextRequest) {
   const isAdminRoute =
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/admin") ||
-    pathname.startsWith("/employees") ||
     pathname.startsWith("/projects") ||
     pathname.startsWith("/payroll") ||
     pathname.startsWith("/map") ||
