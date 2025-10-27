@@ -31,32 +31,49 @@ export default function AdminLoginPage() {
     setIsLoading(true)
     setError(null)
 
+    console.log("[v0] Admin login: Starting login", {
+      loginNumber,
+      isInIframe,
+      userAgent: navigator.userAgent,
+    })
+
     try {
       const result = await adminLoginByLoginNumber(loginNumber, password)
 
+      console.log("[v0] Admin login: Result received", {
+        success: result.success,
+        hasUser: !!result.user,
+        error: result.error,
+      })
+
       if (result.success) {
         if (isInIframe) {
-          console.log("[v0] Admin login: In iframe, using token-based auth")
-          // For iframe, we'll use localStorage as fallback
+          console.log("[v0] Admin login: In iframe, using localStorage and direct navigation")
+          // For iframe, store in localStorage
           if (result.user) {
-            localStorage.setItem(
-              "admin_session",
-              JSON.stringify({
-                ...result.user,
-                loginNumber,
-                timestamp: Date.now(),
-              }),
-            )
+            const sessionData = {
+              ...result.user,
+              loginNumber,
+              timestamp: Date.now(),
+            }
+            localStorage.setItem("admin_session", JSON.stringify(sessionData))
+            console.log("[v0] Admin login: Stored session in localStorage", sessionData)
           }
+
+          console.log("[v0] Admin login: Navigating to dashboard via window.location")
+          window.location.href = "/dashboard"
+        } else {
+          console.log("[v0] Admin login: Normal browser, using router navigation")
+          router.push("/dashboard")
+          router.refresh()
         }
-        router.push("/dashboard")
-        router.refresh()
       } else {
+        console.log("[v0] Admin login: Login failed", result.error)
         setError(result.error || "Login failed")
       }
     } catch (error) {
       console.error("[v0] Admin login: Exception:", error)
-      setError("An unexpected error occurred")
+      setError("An unexpected error occurred. Please try again.")
     } finally {
       setIsLoading(false)
     }
@@ -85,6 +102,7 @@ export default function AdminLoginPage() {
                   value={loginNumber}
                   onChange={(e) => setLoginNumber(e.target.value)}
                   disabled={isLoading}
+                  autoComplete="username"
                 />
               </div>
               <div className="space-y-2">
@@ -96,6 +114,7 @@ export default function AdminLoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={isLoading}
+                  autoComplete="current-password"
                 />
               </div>
               {error && (
