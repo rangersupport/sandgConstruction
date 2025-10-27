@@ -246,6 +246,7 @@ export async function adminLogin(email: string, password: string): Promise<AuthR
         secure: process.env.NODE_ENV === "production",
         maxAge: 60 * 60 * 24 * 7, // 7 days
         sameSite: "lax",
+        path: "/", // Ensure cookie is available on all routes
       },
     )
 
@@ -345,6 +346,7 @@ export async function adminLoginAlternative(email: string, password: string): Pr
         secure: process.env.NODE_ENV === "production",
         maxAge: 60 * 60 * 24 * 7,
         sameSite: "lax",
+        path: "/", // Ensure cookie is available on all routes
       },
     )
 
@@ -427,6 +429,7 @@ export async function adminLoginByLoginNumber(loginNumber: string, password: str
         secure: process.env.NODE_ENV === "production",
         maxAge: 60 * 60 * 24 * 7,
         sameSite: "lax",
+        path: "/", // Ensure cookie is available on all routes
       },
     )
 

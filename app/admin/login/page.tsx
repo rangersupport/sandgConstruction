@@ -64,6 +64,7 @@ export default function AdminLoginPage() {
                   value={loginNumber}
                   onChange={(e) => setLoginNumber(e.target.value)}
                   disabled={isLoading}
+                  placeholder=""
                 />
               </div>
               <div className="space-y-2">
