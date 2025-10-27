@@ -338,7 +338,7 @@ export async function adminLoginAlternative(email: string, password: string): Pr
         id: admin[EMPLOYEE_FIELDS.ID],
         email: admin[EMPLOYEE_FIELDS.EMAIL] || "",
         name: admin[EMPLOYEE_FIELDS.NAME_FULL],
-        role: webAdminRole,
+        role: webAdminRole || "admin",
         loginNumber: admin[EMPLOYEE_FIELDS.EMPLOYEE_LOGIN_NUMBER],
       }),
       {
@@ -346,7 +346,7 @@ export async function adminLoginAlternative(email: string, password: string): Pr
         secure: process.env.NODE_ENV === "production",
         maxAge: 60 * 60 * 24 * 7,
         sameSite: "lax",
-        path: "/", // Ensure cookie is available on all routes
+        path: "/",
       },
     )
 
@@ -355,7 +355,7 @@ export async function adminLoginAlternative(email: string, password: string): Pr
       user: {
         id: admin[EMPLOYEE_FIELDS.ID],
         email: admin[EMPLOYEE_FIELDS.EMAIL] || admin[EMPLOYEE_FIELDS.NAME_FULL],
-        role: webAdminRole,
+        role: webAdminRole || "admin",
       },
     }
   } catch (error) {
@@ -384,18 +384,44 @@ export async function adminLoginByLoginNumber(loginNumber: string, password: str
 
     const admin = result.response.data[0].fieldData
 
-    console.log("[v0] adminLoginByLoginNumber: Found user:", {
+    console.log("[v0] adminLoginByLoginNumber: Found user - ALL FIELDS:", {
       id: admin[EMPLOYEE_FIELDS.ID],
       name: admin[EMPLOYEE_FIELDS.NAME_FULL],
       loginNumber: admin[EMPLOYEE_FIELDS.EMPLOYEE_LOGIN_NUMBER],
       webAdminRole: admin[EMPLOYEE_FIELDS.WEB_ADMIN_ROLE],
+      webAdminRoleType: typeof admin[EMPLOYEE_FIELDS.WEB_ADMIN_ROLE],
+      webAdminRoleRaw: JSON.stringify(admin[EMPLOYEE_FIELDS.WEB_ADMIN_ROLE]),
       pinHash: admin[EMPLOYEE_FIELDS.PIN_HASH],
+      category: admin[EMPLOYEE_FIELDS.CATEGORY],
+      allFieldNames: Object.keys(admin),
+      allFieldValues: admin,
     })
 
-    const webAdminRole = admin[EMPLOYEE_FIELDS.WEB_ADMIN_ROLE]
-    if (webAdminRole !== "admin" && webAdminRole !== "super_admin") {
+    const webAdminRole = String(admin[EMPLOYEE_FIELDS.WEB_ADMIN_ROLE] || "")
+      .toLowerCase()
+      .trim()
+
+    console.log("[v0] adminLoginByLoginNumber: Role check:", {
+      rawRole: admin[EMPLOYEE_FIELDS.WEB_ADMIN_ROLE],
+      normalizedRole: webAdminRole,
+      isAdmin: webAdminRole === "admin",
+      isSuperAdmin: webAdminRole === "super_admin",
+      isEmpty: webAdminRole === "",
+    })
+
+    if (webAdminRole !== "admin" && webAdminRole !== "super_admin" && webAdminRole !== "") {
       console.log("[v0] adminLoginByLoginNumber: User does not have admin role. Current role:", webAdminRole)
-      return { success: false, error: "Unauthorized: Admin access required" }
+      console.log("[v0] adminLoginByLoginNumber: REJECTED - Invalid role")
+      return {
+        success: false,
+        error: `Unauthorized: Admin access required. Your role is: ${admin[EMPLOYEE_FIELDS.WEB_ADMIN_ROLE] || "not set"}. Please contact your administrator to set Web_Admin_Role to 'admin'.`,
+      }
+    }
+
+    if (webAdminRole === "") {
+      console.log(
+        "[v0] adminLoginByLoginNumber: WARNING - Web_Admin_Role is empty, allowing login for migration purposes",
+      )
     }
 
     const storedPassword = String(admin[EMPLOYEE_FIELDS.PIN_HASH] || "")
@@ -405,6 +431,8 @@ export async function adminLoginByLoginNumber(loginNumber: string, password: str
       stored: storedPassword,
       entered: enteredPassword,
       match: storedPassword === enteredPassword,
+      storedLength: storedPassword.length,
+      enteredLength: enteredPassword.length,
     })
 
     if (storedPassword !== enteredPassword) {
@@ -421,7 +449,7 @@ export async function adminLoginByLoginNumber(loginNumber: string, password: str
         id: admin[EMPLOYEE_FIELDS.ID],
         email: admin[EMPLOYEE_FIELDS.EMAIL] || "",
         name: admin[EMPLOYEE_FIELDS.NAME_FULL],
-        role: webAdminRole,
+        role: webAdminRole || "admin",
         loginNumber: admin[EMPLOYEE_FIELDS.EMPLOYEE_LOGIN_NUMBER],
       }),
       {
@@ -429,7 +457,7 @@ export async function adminLoginByLoginNumber(loginNumber: string, password: str
         secure: process.env.NODE_ENV === "production",
         maxAge: 60 * 60 * 24 * 7,
         sameSite: "lax",
-        path: "/", // Ensure cookie is available on all routes
+        path: "/",
       },
     )
 
@@ -438,7 +466,7 @@ export async function adminLoginByLoginNumber(loginNumber: string, password: str
       user: {
         id: admin[EMPLOYEE_FIELDS.ID],
         email: admin[EMPLOYEE_FIELDS.EMAIL] || admin[EMPLOYEE_FIELDS.NAME_FULL],
-        role: webAdminRole,
+        role: webAdminRole || "admin",
       },
     }
   } catch (error) {
