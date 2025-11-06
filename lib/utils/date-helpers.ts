@@ -23,3 +23,8 @@ export function formatWeekRange(weekStart: Date): string {
   weekEnd.setDate(weekEnd.getDate() + 6)
   return `${weekStart.toLocaleDateString()} - ${weekEnd.toLocaleDateString()}`
 }
+
+// Format a single date for display
+export function formatDate(date: Date): string {
+  return new Date(date).toLocaleDateString()
+}

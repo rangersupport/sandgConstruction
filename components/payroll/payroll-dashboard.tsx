@@ -6,16 +6,20 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { DollarSign, Calendar, CheckCircle2, Clock, Download } from "lucide-react"
-import { calculateWeeklyPayroll, savePayrollRecords } from "@/lib/actions/payroll-actions"
+import { DollarSign, Calendar, CheckCircle2, Clock, Download, Printer } from "lucide-react"
+import { calculateWeeklyPayroll, savePayrollToHistory, markTimeEntriesAsPaid } from "@/lib/actions/payroll-actions"
 import { getWeekStart } from "@/lib/utils/date-helpers"
 
 interface PayrollData {
+  employee_id: string
   employee_name: string
+  week_start: string
+  week_end: string
   regular_hours: number
   overtime_hours: number
   total_hours: number
   hourly_rate: number
+  overtime_rate: number
   regular_pay: number
   overtime_pay: number
   total_pay: number
@@ -26,6 +30,7 @@ export function PayrollDashboard() {
   const [weekStart, setWeekStart] = useState<Date>(getWeekStart())
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
+  const [processing, setProcessing] = useState(false)
 
   useEffect(() => {
     loadPayroll()
@@ -45,21 +50,58 @@ export function PayrollDashboard() {
     }
   }
 
-  async function handleSavePayroll() {
-    setLoading(true)
+  async function handleProcessPayroll() {
+    if (payrollData.length === 0) {
+      setMessage({ type: "error", text: "No payroll data to process" })
+      return
+    }
+
+    setProcessing(true)
     setMessage(null)
+
     try {
-      const result = await savePayrollRecords(payrollData)
-      if (result.success) {
-        setMessage({ type: "success", text: "Payroll records saved successfully!" })
+      const payDate = new Date()
+      const historyResult = await savePayrollToHistory(payrollData, payDate)
+
+      if (!historyResult.success) {
+        setMessage({ type: "error", text: historyResult.error || "Failed to save payroll history" })
+        setProcessing(false)
+        return
+      }
+
+      // Mark all time entries as paid
+      const weekEnd = new Date(weekStart)
+      weekEnd.setDate(weekEnd.getDate() + 6)
+
+      let allMarked = true
+      for (let i = 0; i < payrollData.length; i++) {
+        const markResult = await markTimeEntriesAsPaid(
+          payrollData[i].employee_id,
+          weekStart,
+          weekEnd,
+          historyResult.payrollHistoryIds![i],
+        )
+
+        if (!markResult.success) {
+          console.error(`Failed to mark entries for employee ${payrollData[i].employee_id}:`, markResult.error)
+          allMarked = false
+        }
+      }
+
+      if (allMarked) {
+        setMessage({ type: "success", text: `Payroll processed successfully! ${payrollData.length} employees paid.` })
+        setPayrollData([])
       } else {
-        setMessage({ type: "error", text: result.error || "Failed to save payroll" })
+        setMessage({
+          type: "error",
+          text: "Payroll history saved but some time entries failed to update. Please review manually.",
+        })
       }
     } catch (error) {
-      console.error("Error saving payroll:", error)
-      setMessage({ type: "error", text: "Failed to save payroll records" })
+      console.error("Error processing payroll:", error)
+      setMessage({ type: "error", text: "Failed to process payroll" })
     } finally {
-      setLoading(false)
+      setProcessing(false)
     }
   }
 
@@ -79,6 +121,13 @@ export function PayrollDashboard() {
     setWeekStart(getWeekStart())
   }
 
+  function handlePrintChecks() {
+    const printWindow = window.open("/admin/payroll/checks/print", "_blank")
+    if (printWindow) {
+      printWindow.focus()
+    }
+  }
+
   const weekStartDate = new Date(weekStart)
   const weekEnd = new Date(weekStartDate)
   weekEnd.setDate(weekEnd.getDate() + 6)
@@ -92,7 +141,7 @@ export function PayrollDashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Weekly Payroll</h1>
-          <p className="text-muted-foreground">Calculate and manage employee payments</p>
+          <p className="text-muted-foreground">Calculate and manage employee payments (Unpaid Hours Only)</p>
         </div>
       </div>
 
@@ -144,7 +193,7 @@ export function PayrollDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{(totalRegularHours + totalOvertimeHours).toFixed(1)}</div>
-            <p className="text-xs text-muted-foreground">Combined work hours</p>
+            <p className="text-xs text-muted-foreground">Combined unpaid work hours</p>
           </CardContent>
         </Card>
 
@@ -163,16 +212,16 @@ export function PayrollDashboard() {
       {/* Payroll Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Employee Payroll Details</CardTitle>
-          <CardDescription>Breakdown of hours and payments for each employee</CardDescription>
+          <CardTitle>Employee Payroll Details (Unpaid Hours)</CardTitle>
+          <CardDescription>Only showing unpaid time entries for this week</CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
             <div className="text-center py-8 text-muted-foreground">Loading payroll data...</div>
           ) : payrollData.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">No payroll data for this week</div>
+            <div className="text-center py-8 text-muted-foreground">No unpaid hours found for this week</div>
           ) : (
-            <div className="rounded-md border">
+            <div className="rounded-md border overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -180,7 +229,7 @@ export function PayrollDashboard() {
                     <TableHead className="text-right">Regular Hours</TableHead>
                     <TableHead className="text-right">OT Hours</TableHead>
                     <TableHead className="text-right">Total Hours</TableHead>
-                    <TableHead className="text-right">Hourly Rate</TableHead>
+                    <TableHead className="text-right">Rate</TableHead>
                     <TableHead className="text-right">Regular Pay</TableHead>
                     <TableHead className="text-right">OT Pay</TableHead>
                     <TableHead className="text-right">Total Pay</TableHead>
@@ -205,18 +254,20 @@ export function PayrollDashboard() {
                       <TableCell className="text-right font-bold">${employee.total_pay.toFixed(2)}</TableCell>
                     </TableRow>
                   ))}
-                  <TableRow className="bg-muted/50">
-                    <TableCell className="font-bold">TOTAL</TableCell>
-                    <TableCell className="text-right font-bold">{totalRegularHours.toFixed(2)}</TableCell>
-                    <TableCell className="text-right font-bold">{totalOvertimeHours.toFixed(2)}</TableCell>
-                    <TableCell className="text-right font-bold">
-                      {(totalRegularHours + totalOvertimeHours).toFixed(2)}
-                    </TableCell>
-                    <TableCell></TableCell>
-                    <TableCell></TableCell>
-                    <TableCell></TableCell>
-                    <TableCell className="text-right font-bold text-lg">${totalPay.toFixed(2)}</TableCell>
-                  </TableRow>
+                  {payrollData.length > 0 && (
+                    <TableRow className="bg-muted/50">
+                      <TableCell className="font-bold">TOTAL</TableCell>
+                      <TableCell className="text-right font-bold">{totalRegularHours.toFixed(2)}</TableCell>
+                      <TableCell className="text-right font-bold">{totalOvertimeHours.toFixed(2)}</TableCell>
+                      <TableCell className="text-right font-bold">
+                        {(totalRegularHours + totalOvertimeHours).toFixed(2)}
+                      </TableCell>
+                      <TableCell></TableCell>
+                      <TableCell></TableCell>
+                      <TableCell></TableCell>
+                      <TableCell className="text-right font-bold text-lg">${totalPay.toFixed(2)}</TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </div>
@@ -228,10 +279,14 @@ export function PayrollDashboard() {
       {payrollData.length > 0 && (
         <Card>
           <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <Button onClick={handleSavePayroll} disabled={loading} className="flex-1" size="lg">
+            <div className="flex items-center gap-4 flex-wrap">
+              <Button onClick={handlePrintChecks} variant="outline" size="lg">
+                <Printer className="mr-2 h-5 w-5" />
+                Print Checks
+              </Button>
+              <Button onClick={handleProcessPayroll} disabled={processing} className="flex-1" size="lg">
                 <CheckCircle2 className="mr-2 h-5 w-5" />
-                Save & Approve Payroll
+                {processing ? "Processing..." : "Mark as Paid & Save"}
               </Button>
               <Button variant="outline" size="lg">
                 <Download className="mr-2 h-5 w-5" />

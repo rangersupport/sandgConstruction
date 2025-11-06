@@ -4,6 +4,7 @@ export const FILEMAKER_LAYOUTS = {
   TIME_ENTRIES: "T17z_TimeEntries",
   PROJECTS: "T19_PROJECTS",
   ADMIN_USERS: "AdminUsers",
+  PAYROLL_HISTORY: "T17z_PayrollHistory",
 } as const
 
 export const EMPLOYEE_FIELDS = {
@@ -78,4 +79,26 @@ export const TIME_ENTRY_FIELDS = {
   MODIFIED_AT: "modified_at", // Timestamp (Modification)
   CREATOR: "creator", // Text (Created by)
   MODIFIER: "modifier", // Text (Modified by)
+  PAYMENT_STATUS: "payment_status",
+  PAYROLL_PERIOD_ID: "payroll_period_id",
+} as const
+
+export const PAYROLL_HISTORY_FIELDS = {
+  ID: "ID_payroll_history",
+  EMPLOYEE_ID: "employee_id",
+  EMPLOYEE_NAME: "employee_name",
+  WEEK_START: "week_start",
+  WEEK_END: "week_end",
+  REGULAR_HOURS: "regular_hours",
+  OVERTIME_HOURS: "overtime_hours",
+  TOTAL_HOURS: "total_hours",
+  HOURLY_RATE: "hourly_rate",
+  OVERTIME_RATE: "overtime_rate",
+  REGULAR_PAY: "regular_pay",
+  OVERTIME_PAY: "overtime_pay",
+  TOTAL_PAY: "total_pay",
+  STATUS: "status",
+  PAY_DATE: "pay_date",
+  CREATED_AT: "created_at",
+  MODIFIED_AT: "modified_at",
 } as const
